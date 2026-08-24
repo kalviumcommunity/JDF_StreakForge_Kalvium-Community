@@ -1,0 +1,8 @@
+rule,dataset,violations,total_rows,pct_violation
+billing_cycle_end > billing_cycle_start,subs,0,45088,0.0
+streak_end_date >= streak_start_date,streak,0,38940,0.0
+checkout_datetime > checkin_datetime,checkin,0,95600,0.0
+age between 16 and 65,members,0,16960,0.0
+date_of_birth < join_date,members,0,16960,0.0
+streak_length_days matches computed span,streak,0,38940,0.0
+amount_paid_inr > 0,subs,0,45088,0.0

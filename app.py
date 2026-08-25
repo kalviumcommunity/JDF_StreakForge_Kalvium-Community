@@ -7,9 +7,11 @@ Structure:
   4. Router           (calls exactly one section per rerun)
 """
 
+import pandas as pd
 import streamlit as st
 
 import data_utils as du
+import upload_utils as uu
 
 # --- 1. Page config ----------------------------------------------------------
 st.set_page_config(
@@ -22,9 +24,16 @@ st.set_page_config(
 st.sidebar.title("StreakForge")
 st.sidebar.caption("Fitness Retention Intelligence")
 st.sidebar.subheader("Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "Trends", "Data Explorer"])
+page = st.sidebar.radio(
+    "Go to", ["Overview", "Trends", "Data Explorer", "Upload & Sync"]
+)
 st.sidebar.divider()
 st.sidebar.caption(f"Data as of: {du.as_of():%d %b %Y}")
+
+# Show whether an ad-hoc file is loaded this session, so the user always knows
+# which dataset the Upload section is holding.
+if "upload" in st.session_state:
+    st.sidebar.caption(f"Uploaded: {st.session_state['upload']['name']}")
 
 
 # --- 3a. Overview ------------------------------------------------------------
@@ -161,6 +170,162 @@ def data_explorer():
         )
 
 
+# --- 3d. Upload & Sync -------------------------------------------------------
+# Three visible steps — select, validate, confirm — so a monthly refresh never
+# silently half-lands. Mirrors Screen 5 of the mock UX.
+def upload_and_sync():
+    st.title("Upload & Sync")
+    st.caption(
+        "Bring your own CSV or JSON export and see its shape, types and data "
+        "quality immediately. This preview is standalone — the dashboard "
+        "sections above continue to read from data/raw."
+    )
+
+    # ---- Step 1 · Select ----------------------------------------------------
+    st.header("Step 1 · Select a file")
+    uploaded = st.file_uploader(
+        "Upload a dataset",
+        type=["csv", "json"],
+        help="CSV or JSON, up to 200 MB. Nothing is written to disk — the file "
+             "lives in memory for this browser session only.",
+    )
+
+    if uploaded is None:
+        # Empty state: say what is empty, why, and offer exactly one action.
+        st.info(
+            "**No file loaded yet.** Nothing has been uploaded in this session, "
+            "so there is nothing to preview. Drop a `.csv` or `.json` export "
+            "into the box above to begin."
+        )
+        with st.expander("What happens after I upload?"):
+            st.write(
+                "The file is parsed in memory, checked for common problems "
+                "(empty file, missing headers, inconsistent rows), and then "
+                "profiled: row and column counts, null percentage, the first "
+                "10 rows, per-column types and completeness, and descriptive "
+                "statistics. Nothing is saved to the server."
+            )
+        st.stop()
+
+    # ---- Step 2 · Validate --------------------------------------------------
+    st.header("Step 2 · Validate")
+    try:
+        df = uu.load_dataframe(uploaded.name, uploaded.getvalue())
+        uu.validate(df)
+    except uu.UploadError as err:
+        # Error-state rule: what went wrong, the consequence, the way out.
+        st.error(f"**{err}**")
+        st.caption(
+            "Nothing was loaded, so no numbers on this page have changed. "
+            "Fix the file and upload it again."
+        )
+        st.stop()
+    except Exception:
+        st.error(
+            "**Could not read this file.** It may be corrupted or in an "
+            "unexpected format."
+        )
+        st.caption("Nothing was loaded. Try re-exporting the file as CSV.")
+        st.stop()
+
+    st.success(
+        f"**{uploaded.name}** passed validation — "
+        f"{len(df):,} rows x {len(df.columns)} columns."
+    )
+
+    for flag in uu.quality_flags(df):
+        st.warning(flag)
+
+    # Persist so the file survives reruns and switching sections.
+    st.session_state["upload"] = {"name": uploaded.name, "rows": len(df)}
+
+    st.divider()
+
+    # ---- Step 3 · Confirm ---------------------------------------------------
+    st.header("Step 3 · Confirm")
+
+    st.subheader("Shape and Completeness")
+    st.caption("Answers: did the whole file arrive, and how much is missing?")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Rows", f"{len(df):,}")
+    with c2:
+        st.metric("Columns", f"{len(df.columns)}")
+    with c3:
+        st.metric("Null %", f"{uu.overall_null_pct(df):.1f}%")
+
+    st.subheader(f"First {uu.PREVIEW_ROWS} Rows")
+    st.caption("Answers: does the data look like what I expected to export?")
+    st.dataframe(df.head(uu.PREVIEW_ROWS), use_container_width=True)
+
+    st.subheader("Column Summary")
+    st.caption("Answers: which columns are usable, and which are too sparse?")
+    st.dataframe(uu.column_summary(df), use_container_width=True, height=320)
+
+    numeric = uu.numeric_columns(df)
+
+    with st.expander("Descriptive statistics (numeric columns)"):
+        if numeric:
+            st.caption(
+                "Answers: are there impossible values — negative amounts, "
+                "zero durations, outliers at the max?"
+            )
+            st.dataframe(df[numeric].describe(), use_container_width=True)
+        else:
+            st.info("No numeric columns in this file, so there is nothing to describe.")
+
+    with st.expander("Top values (categorical columns)"):
+        categorical = uu.categorical_columns(df)
+        if categorical:
+            col = st.selectbox("Column", categorical, key="cat_col")
+            st.dataframe(
+                df[col].value_counts().head(15).to_frame("count"),
+                use_container_width=True,
+            )
+        else:
+            st.info("No categorical columns in this file.")
+
+    st.divider()
+
+    # ---- Downstream usage ---------------------------------------------------
+    st.header("Quick Exploration")
+    st.caption("Proves the uploaded data is usable for filtering and charting.")
+
+    if not numeric:
+        st.info("No numeric columns available to chart.")
+    else:
+        pick, filt = st.columns([2, 3])
+        with pick:
+            col = st.selectbox("Numeric column", numeric, key="explore_col")
+        with filt:
+            low, high = float(df[col].min()), float(df[col].max())
+            if low == high:
+                st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
+                bounds = (low, high)
+            else:
+                bounds = st.slider(
+                    f"Range of {col}", low, high, (low, high)
+                )
+
+        subset = df[df[col].between(*bounds)]
+        st.caption(f"{len(subset):,} of {len(df):,} rows in range.")
+
+        st.subheader(f"Distribution of {col}")
+        if subset.empty:
+            st.info("No rows in the selected range.")
+        else:
+            counts = pd.cut(subset[col], bins=20).value_counts().sort_index()
+            counts.index = [f"{interval.left:,.0f}" for interval in counts.index]
+            st.bar_chart(counts, height=260)
+
+        st.download_button(
+            "Download filtered rows",
+            data=subset.to_csv(index=False).encode("utf-8"),
+            file_name=f"filtered_{uploaded.name.rsplit('.', 1)[0]}.csv",
+            mime="text/csv",
+        )
+
+
 # --- 4. Router ---------------------------------------------------------------
 if page == "Overview":
     overview()
@@ -168,3 +333,5 @@ elif page == "Trends":
     trends()
 elif page == "Data Explorer":
     data_explorer()
+elif page == "Upload & Sync":
+    upload_and_sync()

@@ -1,0 +1,12 @@
+check,dataset,failed_or_flagged,total_rows,pct_flagged,note
+union_row_count_conservation,engagement_events,0,206732,0.0,rows after union must exactly equal checkin + app row counts (no gain/loss)
+source_event_id_uniqueness,engagement_events,10,206732,0.0,raw source_event_id not guaranteed unique across/within sources — surrogate engagement_event_id used as the real PK
+referential_integrity_member_id,engagement_events,0,206732,0.0,rows whose member_id has no matching members_master record
+referential_integrity_member_id,subscription_renewal_records,0,45088,0.0,rows whose member_id has no matching members_master record
+referential_integrity_member_id,streak_history_episodes,0,40177,0.0,rows whose member_id has no matching members_master record
+members_master_join_row_conservation,merged,0,206732,0.0,left join on members_master must not change row count (validate='m:1' also enforces this)
+subscriptions_asof_join_row_conservation,merged,0,206732,0.0,merge_asof is fan-out safe by construction — row count must equal engagement_events
+subscription_status_distribution,merged,155332,206732,75.14,"only 24.9% of events fall inside an active billing cycle — expected per design philosophy (silent/soft churn, late renewals), not a join defect"
+streaks_asof_join_row_conservation,merged,0,206732,0.0,merge_asof is fan-out safe by construction — row count must equal engagement_events
+streak_match_rate,merged,190659,206732,92.23,share of events that fall inside a known streak episode for that member
+streak_overlap_caveat,streak_history_episodes,509,40177,1.27,"overlapping streak episodes for the same member exist upstream — as-of join picks nearest start, which may not always be the semantically 'correct' streak for a handful of members"

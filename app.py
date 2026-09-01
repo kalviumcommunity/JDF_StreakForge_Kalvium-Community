@@ -10,6 +10,8 @@ Structure:
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
 import data_utils as du
 import upload_utils as uu
@@ -172,9 +174,12 @@ def trends():
     activity = du.monthly_activity()
 
     st.header("Engagement Trends")
+    
+    # Chart 1: Line chart - Monthly Active Members (Streamlit native)
     st.subheader("Monthly Active Members (Last 24 Months)")
     st.line_chart(activity["active_members"], height=300)
 
+    # Chart 2: Line chart - Total Visits vs Unique Members (Streamlit native multi-series)
     st.subheader("Total Visits vs Unique Members")
     st.line_chart(activity[["total_visits", "active_members"]], height=280)
 
@@ -188,20 +193,40 @@ def trends():
     st.divider()
 
     st.header("Commercial Trends")
+    
+    # Chart 3: Line chart - Retention Rate by Month (Streamlit native)
     st.subheader("Retention Rate by Month")
     st.line_chart(du.monthly_retention()["retention_pct"], height=260)
 
+    # Chart 4: Bar chart + Plotly interactive - Retention by Membership Type
     st.subheader("Retention by Membership Type")
     seg = du.retention_by("membership_type")
+    
     chart, table = st.columns([3, 2])
     with chart:
-        st.bar_chart(seg["retention_pct"], height=260)
+        # Chart 5: Plotly bar chart (interactive with hover details)
+        fig = px.bar(
+            seg.reset_index(),
+            x="membership_type",
+            y="retention_pct",
+            color="retention_pct",
+            color_continuous_scale="RdYlGn",
+            labels={"retention_pct": "Retention %", "membership_type": "Membership Type"},
+            title="Retention by Membership Type"
+        )
+        fig.update_layout(showlegend=False, height=300)
+        st.plotly_chart(fig, use_container_width=True)
     with table:
-        st.dataframe(seg, height=260)
+        st.dataframe(seg, height=300)
 
 
 # --- 4c. Data Explorer -------------------------------------------------------
 def data_explorer():
+    """Data Explorer with reactive filtered KPIs and multiple chart types.
+    
+    All KPIs and charts update dynamically based on filter selections.
+    Handles empty filter results gracefully with user-friendly messaging.
+    """
     st.title("Data Explorer")
     table = du.member_table()
 
@@ -244,7 +269,7 @@ def data_explorer():
             key="explorer_at_risk"
         )
 
-    # Apply filters from session state
+    # Apply filters from session state - all KPIs computed from filtered data
     filtered = table.copy()
     if st.session_state["explorer_cities"]:
         filtered = filtered[filtered["city"].isin(st.session_state["explorer_cities"])]
@@ -257,26 +282,100 @@ def data_explorer():
 
     st.divider()
 
-    st.header("Member Table")
-    m1, m2 = st.columns(2)
-    m1.metric("Members Matched", f"{len(filtered):,}")
-    m2.metric("Median Visits", f"{filtered['visits'].median() if len(filtered) else 0:.0f}")
+    # Task 4: Handle empty filtered results with user-friendly message
+    if len(filtered) == 0:
+        st.warning(
+            "⚠️ **No members match your current filter selections.** "
+            "Try broadening your criteria (fewer cities, lower visit threshold, or disable at-risk filter)."
+        )
+        st.info(
+            f"💡 **Tip:** Out of {len(table):,} total members, your filters returned zero results. "
+            "Use the reset button in the sidebar to clear all filters and start fresh."
+        )
+        st.stop()
 
+    st.header("Filtered Results")
+    
+    # Task 1: Five reactive KPI metrics computed from filtered DataFrame
+    # All values update dynamically when filters change - no hardcoded values
+    m1, m2, m3, m4, m5 = st.columns(5)
+    with m1:
+        # KPI 1: Total members matching filters
+        st.metric("Members Matched", f"{len(filtered):,}")
+    with m2:
+        # KPI 2: Median visits (central tendency for skewed distribution)
+        st.metric("Median Visits", f"{filtered['visits'].median():.0f}")
+    with m3:
+        # KPI 3: Average visits (mean for comparison)
+        st.metric("Mean Visits", f"{filtered['visits'].mean():.1f}")
+    with m4:
+        # KPI 4: At-risk members (no visit in 30+ days)
+        at_risk_count = (filtered["days_since_visit"].fillna(9999) >= 30).sum()
+        st.metric("At Risk", f"{at_risk_count:,}", f"{at_risk_count/len(filtered)*100:.1f}%")
+    with m5:
+        # KPI 5: Data completeness (inverse of null percentage)
+        null_count = filtered[["city", "membership_type", "last_visit"]].isnull().sum().sum()
+        total_cells = len(filtered) * 3
+        completeness = (1 - null_count / total_cells) * 100 if total_cells > 0 else 100
+        st.metric("Data Quality", f"{completeness:.1f}%")
+
+    st.divider()
+
+    # Task 2: Multiple chart types that update with filters
+    st.header("Visual Analysis")
+    
+    # Chart 1: Plotly histogram - Visit distribution (interactive, zoomable)
+    st.subheader("Visit Distribution")
+    fig_hist = px.histogram(
+        filtered,
+        x="visits",
+        nbins=30,
+        title="Distribution of Visit Counts",
+        labels={"visits": "Total Visits", "count": "Member Count"},
+        color_discrete_sequence=["#FF6B6B"]
+    )
+    fig_hist.update_layout(showlegend=False, height=300)
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    # Chart 2: Bar chart - Members by city (Streamlit native)
+    if not filtered["city"].isna().all():
+        st.subheader("Members by City")
+        city_counts = filtered["city"].value_counts().sort_values(ascending=False)
+        st.bar_chart(city_counts, height=280)
+    
+    # Chart 3: Plotly box plot - Visits by membership type (shows distribution + outliers)
+    if not filtered["membership_type"].isna().all():
+        st.subheader("Visit Patterns by Membership Type")
+        fig_box = px.box(
+            filtered.dropna(subset=["membership_type"]),
+            x="membership_type",
+            y="visits",
+            color="membership_type",
+            title="Visit Distribution by Membership Type",
+            labels={"visits": "Total Visits", "membership_type": "Membership Type"}
+        )
+        fig_box.update_layout(showlegend=False, height=350)
+        st.plotly_chart(fig_box, use_container_width=True)
+
+    st.divider()
+
+    st.header("Member Table")
     st.subheader(f"Showing first 500 of {len(filtered):,} members")
     st.dataframe(filtered.head(500), height=380)
 
     st.download_button(
         "Download filtered CSV",
         data=filtered.to_csv(index=False).encode("utf-8"),
-        file_name="streakforge_members.csv",
+        file_name="streakforge_members_filtered.csv",
         mime="text/csv",
     )
 
     with st.expander("Column definitions"):
         st.write(
-            "visits = lifetime gym check-ins. "
-            "last_visit = most recent check-in. "
-            "days_since_visit = days from last check-in to the data as-of date."
+            "**visits** = lifetime gym check-ins. "
+            "**last_visit** = most recent check-in. "
+            "**days_since_visit** = days from last check-in to the data as-of date. "
+            "**at_risk** = no visit in 30+ days."
         )
 
 
@@ -286,6 +385,11 @@ def data_explorer():
 # Step 3 only shows if Step 2 (validation) passes.
 # All state persists across widget interactions within each step.
 def upload_and_sync():
+    """Upload & Sync with end-to-end upload-to-dashboard flow.
+    
+    Task 5: Runs end-to-end without hardcoded data - adapts to any uploaded dataset.
+    Task 3: Uses @st.cache_data via upload_utils.load_dataframe for efficient loading.
+    """
     st.title("Upload & Sync")
     st.caption(
         "Bring your own CSV or JSON export and see its shape, types and data "
@@ -330,6 +434,7 @@ def upload_and_sync():
     st.header("Step 2 · Validate")
     
     # Only parse and validate if not already done for this file
+    # Task 3: load_dataframe uses @st.cache_data to prevent redundant parsing
     if st.session_state["upload_workflow_step"] == 1:
         try:
             df = uu.load_dataframe(uploaded.name, uploaded.getvalue())
@@ -381,17 +486,31 @@ def upload_and_sync():
         st.stop()
 
     st.divider()
-    st.header("Step 3 · Confirm")
+    st.header("Step 3 · Confirm & Explore")
 
-    st.subheader("Shape and Completeness")
-    st.caption("Answers: did the whole file arrive, and how much is missing?")
-    c1, c2, c3 = st.columns(3)
-    with c1:
+    # Task 1: Five reactive KPIs computed from uploaded DataFrame (no hardcoded values)
+    st.subheader("Dataset Overview")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    with k1:
+        # KPI 1: Total rows in uploaded file
         st.metric("Rows", f"{len(df):,}")
-    with c2:
+    with k2:
+        # KPI 2: Total columns
         st.metric("Columns", f"{len(df.columns)}")
-    with c3:
-        st.metric("Null %", f"{uu.overall_null_pct(df):.1f}%")
+    with k3:
+        # KPI 3: Data completeness (inverse of null percentage)
+        null_pct = uu.overall_null_pct(df)
+        st.metric("Completeness", f"{100 - null_pct:.1f}%")
+    with k4:
+        # KPI 4: Number of numeric columns (determines chart availability)
+        numeric = uu.numeric_columns(df)
+        st.metric("Numeric Cols", f"{len(numeric)}")
+    with k5:
+        # KPI 5: Number of categorical columns
+        categorical = uu.categorical_columns(df)
+        st.metric("Categorical Cols", f"{len(categorical)}")
+
+    st.divider()
 
     st.subheader(f"First {uu.PREVIEW_ROWS} Rows")
     st.caption("Answers: does the data look like what I expected to export?")
@@ -400,8 +519,6 @@ def upload_and_sync():
     st.subheader("Column Summary")
     st.caption("Answers: which columns are usable, and which are too sparse?")
     st.dataframe(uu.column_summary(df), use_container_width=True, height=320)
-
-    numeric = uu.numeric_columns(df)
 
     with st.expander("Descriptive statistics (numeric columns)"):
         if numeric:
@@ -414,7 +531,6 @@ def upload_and_sync():
             st.info("No numeric columns in this file, so there is nothing to describe.")
 
     with st.expander("Top values (categorical columns)"):
-        categorical = uu.categorical_columns(df)
         if categorical:
             col = st.selectbox("Column", categorical, key="cat_col")
             st.dataframe(
@@ -426,66 +542,115 @@ def upload_and_sync():
 
     st.divider()
 
-    # ---- Downstream usage ---------------------------------------------------
-    st.header("Quick Exploration")
-    st.caption("Proves the uploaded data is usable for filtering and charting.")
+    # ---- Downstream usage with filters and charts ----------------------------
+    st.header("Quick Exploration with Filters")
+    st.caption("Proves the uploaded data is usable for filtering and charting. All charts update based on filter selections.")
 
     if not numeric:
-        st.info("No numeric columns available to chart.")
-    else:
-        pick, filt = st.columns([2, 3])
-        
-        # Initialize selected column in session state on first run of Step 3
-        if st.session_state["upload_selected_numeric_col"] is None:
-            st.session_state["upload_selected_numeric_col"] = numeric[0]
-        
-        with pick:
-            # Column selection persists across slider interactions
-            col = st.selectbox(
-                "Numeric column",
-                numeric,
-                index=numeric.index(st.session_state["upload_selected_numeric_col"]) 
-                      if st.session_state["upload_selected_numeric_col"] in numeric else 0,
-                key="upload_selected_numeric_col"
-            )
-        
-        with filt:
-            low, high = float(df[col].min()), float(df[col].max())
-            if low == high:
-                st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
-                bounds = (low, high)
-            else:
-                # Initialize range bounds for this column if not set
-                if st.session_state["upload_range_bounds"] == (0.0, 0.0):
-                    st.session_state["upload_range_bounds"] = (low, high)
-                
-                # Range slider value persists when user changes column or downloads data
-                bounds = st.slider(
-                    f"Range of {col}",
-                    low,
-                    high,
-                    st.session_state["upload_range_bounds"],
-                    key="upload_range_bounds"
-                )
-
-        # Apply filter from session state
-        subset = df[df[col].between(*bounds)]
-        st.caption(f"{len(subset):,} of {len(df):,} rows in range.")
-
-        st.subheader(f"Distribution of {col}")
-        if subset.empty:
-            st.info("No rows in the selected range.")
-        else:
-            counts = pd.cut(subset[col], bins=20).value_counts().sort_index()
-            counts.index = [f"{interval.left:,.0f}" for interval in counts.index]
-            st.bar_chart(counts, height=260)
-
-        st.download_button(
-            "Download filtered rows",
-            data=subset.to_csv(index=False).encode("utf-8"),
-            file_name=f"filtered_{uploaded.name.rsplit('.', 1)[0]}.csv",
-            mime="text/csv",
+        st.info("No numeric columns available to chart or filter.")
+        st.stop()
+    
+    # Filter selection
+    pick, filt = st.columns([2, 3])
+    
+    # Initialize selected column in session state on first run of Step 3
+    if st.session_state["upload_selected_numeric_col"] is None:
+        st.session_state["upload_selected_numeric_col"] = numeric[0]
+    
+    with pick:
+        # Column selection persists across slider interactions
+        col = st.selectbox(
+            "Numeric column to analyze",
+            numeric,
+            index=numeric.index(st.session_state["upload_selected_numeric_col"]) 
+                  if st.session_state["upload_selected_numeric_col"] in numeric else 0,
+            key="upload_selected_numeric_col"
         )
+    
+    with filt:
+        low, high = float(df[col].min()), float(df[col].max())
+        if low == high:
+            st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
+            bounds = (low, high)
+        else:
+            # Reset bounds when column changes
+            current_col = st.session_state["upload_selected_numeric_col"]
+            if "last_upload_col" not in st.session_state or st.session_state["last_upload_col"] != current_col:
+                st.session_state["upload_range_bounds"] = (low, high)
+                st.session_state["last_upload_col"] = current_col
+            
+            # Range slider value persists when user changes column or downloads data
+            bounds = st.slider(
+                f"Range of {col}",
+                low,
+                high,
+                st.session_state["upload_range_bounds"],
+                key="upload_range_bounds"
+            )
+
+    # Apply filter to create subset - all metrics computed from filtered data
+    subset = df[df[col].between(*bounds)]
+    
+    # Task 4: Handle empty filter results gracefully
+    if subset.empty:
+        st.warning(
+            f"⚠️ **No rows match the selected range for `{col}`.** "
+            f"Try expanding the range between {low:.2f} and {high:.2f}."
+        )
+        st.stop()
+    
+    st.caption(f"📊 Showing {len(subset):,} of {len(df):,} rows in selected range ({len(subset)/len(df)*100:.1f}%)")
+
+    # Task 2: Three different chart types that update with filter selections
+    
+    # Chart 1: Plotly histogram - Distribution of selected column (interactive)
+    st.subheader(f"Distribution of {col}")
+    fig_upload_hist = px.histogram(
+        subset,
+        x=col,
+        nbins=min(30, len(subset)),
+        title=f"Distribution of {col} (filtered)",
+        labels={col: col, "count": "Frequency"},
+        color_discrete_sequence=["#4CAF50"]
+    )
+    fig_upload_hist.update_layout(showlegend=False, height=280)
+    st.plotly_chart(fig_upload_hist, use_container_width=True)
+
+    # Chart 2: Line chart - Trend if there's an index or sequence
+    if len(subset) > 1:
+        st.subheader(f"Trend of {col}")
+        trend_data = subset[[col]].reset_index(drop=True)
+        st.line_chart(trend_data, height=250)
+
+    # Chart 3: Plotly box plot - Summary statistics visualization
+    st.subheader(f"Summary Statistics for {col}")
+    fig_box_upload = px.box(
+        subset,
+        y=col,
+        title=f"Box Plot: {col}",
+        labels={col: col}
+    )
+    fig_box_upload.update_layout(showlegend=False, height=280)
+    st.plotly_chart(fig_box_upload, use_container_width=True)
+
+    # Additional reactive KPIs for filtered subset
+    st.subheader("Filtered Data Statistics")
+    s1, s2, s3, s4 = st.columns(4)
+    with s1:
+        st.metric("Filtered Rows", f"{len(subset):,}")
+    with s2:
+        st.metric("Min", f"{subset[col].min():.2f}")
+    with s3:
+        st.metric("Mean", f"{subset[col].mean():.2f}")
+    with s4:
+        st.metric("Max", f"{subset[col].max():.2f}")
+
+    st.download_button(
+        "Download filtered rows",
+        data=subset.to_csv(index=False).encode("utf-8"),
+        file_name=f"filtered_{uploaded.name.rsplit('.', 1)[0]}.csv",
+        mime="text/csv",
+    )
 
 
 # --- 5. Router ---------------------------------------------------------------

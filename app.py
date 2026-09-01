@@ -2,9 +2,10 @@
 
 Structure:
   1. Page config      (must be the first Streamlit call)
-  2. Sidebar nav      (returns which section to show)
-  3. One function per section
-  4. Router           (calls exactly one section per rerun)
+  2. Session state    (initialize all persistent values)
+  3. Sidebar nav      (returns which section to show)
+  4. One function per section
+  5. Router           (calls exactly one section per rerun)
 """
 
 import pandas as pd
@@ -20,9 +21,90 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 2. Sidebar --------------------------------------------------------------
+# --- 2. Session State Initialization -----------------------------------------
+# Session state persists values across reruns. Each key is initialized only once
+# with safe defaults to prevent overwriting user-selected values.
+
+# "explorer_cities" - stores selected city filters in Data Explorer.
+# Persists when user changes other filters (plans, visit count, advanced filters).
+if "explorer_cities" not in st.session_state:
+    st.session_state["explorer_cities"] = []
+
+# "explorer_plans" - stores selected membership type filters in Data Explorer.
+# Survives reruns when user adjusts sliders or toggles checkboxes.
+if "explorer_plans" not in st.session_state:
+    st.session_state["explorer_plans"] = []
+
+# "explorer_min_visits" - stores minimum visit threshold slider value.
+# Prevents reset when user interacts with multiselect or checkbox widgets.
+if "explorer_min_visits" not in st.session_state:
+    st.session_state["explorer_min_visits"] = 0
+
+# "explorer_at_risk" - stores at-risk filter checkbox state.
+# Maintains selection across widget interactions and page navigation.
+if "explorer_at_risk" not in st.session_state:
+    st.session_state["explorer_at_risk"] = False
+
+# "upload_workflow_step" - tracks which step of the Upload & Sync workflow is active.
+# Prevents Step 2 (Validate) from showing before Step 1 (Select) is complete.
+# Prevents Step 3 (Confirm) from showing before validation passes.
+# Values: 1 = Select file, 2 = Validate, 3 = Confirm & Explore
+if "upload_workflow_step" not in st.session_state:
+    st.session_state["upload_workflow_step"] = 1
+
+# "upload_dataframe" - caches the validated DataFrame from the uploaded file.
+# Prevents re-parsing when user interacts with exploration widgets in Step 3.
+# Stores None when no file is uploaded or validation fails.
+if "upload_dataframe" not in st.session_state:
+    st.session_state["upload_dataframe"] = None
+
+# "upload_filename" - stores the name of the uploaded file.
+# Displayed in sidebar and used for export filename generation.
+# Persists across step transitions and widget interactions.
+if "upload_filename" not in st.session_state:
+    st.session_state["upload_filename"] = None
+
+# "upload_validation_passed" - tracks whether the uploaded file passed validation.
+# Guards Step 3 from showing if Step 2 failed. Reset when a new file is uploaded.
+if "upload_validation_passed" not in st.session_state:
+    st.session_state["upload_validation_passed"] = False
+
+# "upload_selected_numeric_col" - stores which numeric column the user chose for exploration.
+# Persists when user adjusts the range slider or interacts with other widgets in Step 3.
+if "upload_selected_numeric_col" not in st.session_state:
+    st.session_state["upload_selected_numeric_col"] = None
+
+# "upload_range_bounds" - stores the slider range bounds for numeric column filtering.
+# Survives reruns so the user's range selection is not lost when they click download.
+if "upload_range_bounds" not in st.session_state:
+    st.session_state["upload_range_bounds"] = (0.0, 0.0)
+
+# "trends_selected_membership_type" - stores which membership type is selected in Trends view.
+# Persists when user switches between chart and table views or adjusts other controls.
+if "trends_selected_membership_type" not in st.session_state:
+    st.session_state["trends_selected_membership_type"] = None
+
+
+# --- 3. Sidebar --------------------------------------------------------------
 st.sidebar.title("StreakForge")
 st.sidebar.caption("Fitness Retention Intelligence")
+
+# Reset button clears all workflow progress and filter selections
+# Returns the entire app to its initial state as if freshly loaded
+if st.sidebar.button("🔄 Reset All Filters & Workflow", help="Clear all selections and restart workflows"):
+    # Clear all session state keys to return to initial state
+    keys_to_reset = [
+        "explorer_cities", "explorer_plans", "explorer_min_visits", "explorer_at_risk",
+        "upload_workflow_step", "upload_dataframe", "upload_filename",
+        "upload_validation_passed", "upload_selected_numeric_col", "upload_range_bounds",
+        "trends_selected_membership_type"
+    ]
+    for key in keys_to_reset:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.rerun()
+
+st.sidebar.divider()
 st.sidebar.subheader("Navigation")
 page = st.sidebar.radio(
     "Go to", ["Overview", "Trends", "Data Explorer", "Upload & Sync"]
@@ -32,11 +114,13 @@ st.sidebar.caption(f"Data as of: {du.as_of():%d %b %Y}")
 
 # Show whether an ad-hoc file is loaded this session, so the user always knows
 # which dataset the Upload section is holding.
-if "upload" in st.session_state:
-    st.sidebar.caption(f"Uploaded: {st.session_state['upload']['name']}")
+if st.session_state["upload_filename"]:
+    st.sidebar.caption(f"📁 Uploaded: {st.session_state['upload_filename']}")
+    if st.session_state["upload_dataframe"] is not None:
+        st.sidebar.caption(f"   {len(st.session_state['upload_dataframe']):,} rows loaded")
 
 
-# --- 3a. Overview ------------------------------------------------------------
+# --- 4a. Overview ------------------------------------------------------------
 def overview():
     st.title("Business Overview")
     k = du.get_kpis()
@@ -82,7 +166,7 @@ def overview():
         st.dataframe(du.monthly_activity())
 
 
-# --- 3b. Trends --------------------------------------------------------------
+# --- 4b. Trends --------------------------------------------------------------
 def trends():
     st.title("Trend Analysis")
     activity = du.monthly_activity()
@@ -116,33 +200,59 @@ def trends():
         st.dataframe(seg, height=260)
 
 
-# --- 3c. Data Explorer -------------------------------------------------------
+# --- 4c. Data Explorer -------------------------------------------------------
 def data_explorer():
     st.title("Data Explorer")
     table = du.member_table()
 
     st.header("Filter Members")
+    # Filters use session state so selections persist across widget interactions
+    # User can adjust one filter without losing values in other filters
+    
     f1, f2, f3 = st.columns(3)
     with f1:
-        cities = st.multiselect("City", sorted(table["city"].dropna().unique()))
+        # City filter persists in session state across reruns
+        cities = st.multiselect(
+            "City",
+            sorted(table["city"].dropna().unique()),
+            default=st.session_state["explorer_cities"],
+            key="explorer_cities"
+        )
     with f2:
+        # Membership type filter persists across interactions with other widgets
         plans = st.multiselect(
-            "Membership type", sorted(table["membership_type"].dropna().unique())
+            "Membership type",
+            sorted(table["membership_type"].dropna().unique()),
+            default=st.session_state["explorer_plans"],
+            key="explorer_plans"
         )
     with f3:
-        min_visits = st.slider("Minimum visits", 0, int(table["visits"].max()), 0)
+        # Visit threshold persists when user toggles checkboxes or changes multiselects
+        min_visits = st.slider(
+            "Minimum visits",
+            0,
+            int(table["visits"].max()),
+            st.session_state["explorer_min_visits"],
+            key="explorer_min_visits"
+        )
 
     with st.expander("Advanced filters"):
-        at_risk = st.checkbox("At risk only (no visit in 30+ days)")
+        # At-risk checkbox state survives all widget interactions
+        at_risk = st.checkbox(
+            "At risk only (no visit in 30+ days)",
+            value=st.session_state["explorer_at_risk"],
+            key="explorer_at_risk"
+        )
 
+    # Apply filters from session state
     filtered = table.copy()
-    if cities:
-        filtered = filtered[filtered["city"].isin(cities)]
-    if plans:
-        filtered = filtered[filtered["membership_type"].isin(plans)]
-    if min_visits:
-        filtered = filtered[filtered["visits"] >= min_visits]
-    if at_risk:
+    if st.session_state["explorer_cities"]:
+        filtered = filtered[filtered["city"].isin(st.session_state["explorer_cities"])]
+    if st.session_state["explorer_plans"]:
+        filtered = filtered[filtered["membership_type"].isin(st.session_state["explorer_plans"])]
+    if st.session_state["explorer_min_visits"]:
+        filtered = filtered[filtered["visits"] >= st.session_state["explorer_min_visits"]]
+    if st.session_state["explorer_at_risk"]:
         filtered = filtered[filtered["days_since_visit"].fillna(9999) >= 30]
 
     st.divider()
@@ -170,9 +280,11 @@ def data_explorer():
         )
 
 
-# --- 3d. Upload & Sync -------------------------------------------------------
-# Three visible steps — select, validate, confirm — so a monthly refresh never
-# silently half-lands. Mirrors Screen 5 of the mock UX.
+# --- 4d. Upload & Sync -------------------------------------------------------
+# Multi-step workflow where each step depends on the previous step's completion.
+# Step 2 only shows if Step 1 (file selection) succeeds.
+# Step 3 only shows if Step 2 (validation) passes.
+# All state persists across widget interactions within each step.
 def upload_and_sync():
     st.title("Upload & Sync")
     st.caption(
@@ -189,6 +301,13 @@ def upload_and_sync():
         help="CSV or JSON, up to 200 MB. Nothing is written to disk — the file "
              "lives in memory for this browser session only.",
     )
+
+    # When a new file is uploaded, reset workflow state to force re-validation
+    if uploaded is not None and uploaded.name != st.session_state["upload_filename"]:
+        st.session_state["upload_filename"] = uploaded.name
+        st.session_state["upload_workflow_step"] = 1
+        st.session_state["upload_validation_passed"] = False
+        st.session_state["upload_dataframe"] = None
 
     if uploaded is None:
         # Empty state: say what is empty, why, and offer exactly one action.
@@ -209,23 +328,37 @@ def upload_and_sync():
 
     # ---- Step 2 · Validate --------------------------------------------------
     st.header("Step 2 · Validate")
-    try:
-        df = uu.load_dataframe(uploaded.name, uploaded.getvalue())
-        uu.validate(df)
-    except uu.UploadError as err:
-        # Error-state rule: what went wrong, the consequence, the way out.
-        st.error(f"**{err}**")
-        st.caption(
-            "Nothing was loaded, so no numbers on this page have changed. "
-            "Fix the file and upload it again."
-        )
-        st.stop()
-    except Exception:
-        st.error(
-            "**Could not read this file.** It may be corrupted or in an "
-            "unexpected format."
-        )
-        st.caption("Nothing was loaded. Try re-exporting the file as CSV.")
+    
+    # Only parse and validate if not already done for this file
+    if st.session_state["upload_workflow_step"] == 1:
+        try:
+            df = uu.load_dataframe(uploaded.name, uploaded.getvalue())
+            uu.validate(df)
+            # Validation passed - store DataFrame and advance workflow
+            st.session_state["upload_dataframe"] = df
+            st.session_state["upload_validation_passed"] = True
+            st.session_state["upload_workflow_step"] = 2
+        except uu.UploadError as err:
+            # Error-state rule: what went wrong, the consequence, the way out.
+            st.error(f"**{err}**")
+            st.caption(
+                "Nothing was loaded, so no numbers on this page have changed. "
+                "Fix the file and upload it again."
+            )
+            st.stop()
+        except Exception:
+            st.error(
+                "**Could not read this file.** It may be corrupted or in an "
+                "unexpected format."
+            )
+            st.caption("Nothing was loaded. Try re-exporting the file as CSV.")
+            st.stop()
+
+    # Use cached DataFrame from session state
+    df = st.session_state["upload_dataframe"]
+    
+    if df is None:
+        st.error("Validation failed. Please upload a valid file.")
         st.stop()
 
     st.success(
@@ -236,12 +369,18 @@ def upload_and_sync():
     for flag in uu.quality_flags(df):
         st.warning(flag)
 
-    # Persist so the file survives reruns and switching sections.
-    st.session_state["upload"] = {"name": uploaded.name, "rows": len(df)}
+    # Button to advance to Step 3 (Confirm & Explore)
+    if st.button("✓ Confirm and Continue to Step 3"):
+        st.session_state["upload_workflow_step"] = 3
+        st.rerun()
+
+    # ---- Step 3 · Confirm (only shows after user confirms Step 2) -----------
+    # Step 3 depends on Step 2 completion. It will not display until the user
+    # explicitly confirms validation results by clicking the button above.
+    if st.session_state["upload_workflow_step"] < 3:
+        st.stop()
 
     st.divider()
-
-    # ---- Step 3 · Confirm ---------------------------------------------------
     st.header("Step 3 · Confirm")
 
     st.subheader("Shape and Completeness")
@@ -295,18 +434,41 @@ def upload_and_sync():
         st.info("No numeric columns available to chart.")
     else:
         pick, filt = st.columns([2, 3])
+        
+        # Initialize selected column in session state on first run of Step 3
+        if st.session_state["upload_selected_numeric_col"] is None:
+            st.session_state["upload_selected_numeric_col"] = numeric[0]
+        
         with pick:
-            col = st.selectbox("Numeric column", numeric, key="explore_col")
+            # Column selection persists across slider interactions
+            col = st.selectbox(
+                "Numeric column",
+                numeric,
+                index=numeric.index(st.session_state["upload_selected_numeric_col"]) 
+                      if st.session_state["upload_selected_numeric_col"] in numeric else 0,
+                key="upload_selected_numeric_col"
+            )
+        
         with filt:
             low, high = float(df[col].min()), float(df[col].max())
             if low == high:
                 st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
                 bounds = (low, high)
             else:
+                # Initialize range bounds for this column if not set
+                if st.session_state["upload_range_bounds"] == (0.0, 0.0):
+                    st.session_state["upload_range_bounds"] = (low, high)
+                
+                # Range slider value persists when user changes column or downloads data
                 bounds = st.slider(
-                    f"Range of {col}", low, high, (low, high)
+                    f"Range of {col}",
+                    low,
+                    high,
+                    st.session_state["upload_range_bounds"],
+                    key="upload_range_bounds"
                 )
 
+        # Apply filter from session state
         subset = df[df[col].between(*bounds)]
         st.caption(f"{len(subset):,} of {len(df):,} rows in range.")
 
@@ -326,7 +488,7 @@ def upload_and_sync():
         )
 
 
-# --- 4. Router ---------------------------------------------------------------
+# --- 5. Router ---------------------------------------------------------------
 if page == "Overview":
     overview()
 elif page == "Trends":

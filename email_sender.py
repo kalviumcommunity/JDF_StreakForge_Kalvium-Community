@@ -30,10 +30,17 @@ def send_report(report_text, recipients, subject="StreakForge Retention Report",
         bool: True if email sent successfully, False otherwise
     """
     # Read credentials from environment variables
-    sender = os.environ.get("SENDER_EMAIL")
-    password = os.environ.get("SENDER_PASSWORD")
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    sender = os.environ.get("SENDER_EMAIL", "").strip()
+    password = os.environ.get("SENDER_PASSWORD", "").strip()
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
+    smtp_port_str = os.environ.get("SMTP_PORT", "587").strip()
+    
+    try:
+        smtp_port = int(smtp_port_str)
+    except ValueError:
+        error_msg = f"Invalid SMTP_PORT: {smtp_port_str} (must be a number)"
+        log_error(error_msg)
+        return False
     
     # Validate credentials exist
     if not sender or not password:
@@ -67,9 +74,14 @@ def send_report(report_text, recipients, subject="StreakForge Retention Report",
         msg.attach(MIMEText(report_text, mime_type, "utf-8"))
         
         # Connect to SMTP server and send
-        server = smtplib.SMTP(smtp_server, smtp_port)
+        log_error(f"DEBUG: Connecting to {smtp_server}:{smtp_port}")
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
         server.starttls()  # Secure connection
+        
+        log_error(f"DEBUG: Logging in with {sender}")
         server.login(sender, password)
+        
+        log_error(f"DEBUG: Sending message to {recipients}")
         server.send_message(msg)
         server.quit()
         
@@ -77,7 +89,7 @@ def send_report(report_text, recipients, subject="StreakForge Retention Report",
         return True
         
     except smtplib.SMTPAuthenticationError as e:
-        error_msg = f"SMTP authentication failed. Check email credentials: {str(e)}"
+        error_msg = f"SMTP authentication failed. Check email credentials. Error: {str(e)}"
         log_error(error_msg)
         return False
     except smtplib.SMTPException as e:
@@ -85,7 +97,7 @@ def send_report(report_text, recipients, subject="StreakForge Retention Report",
         log_error(error_msg)
         return False
     except Exception as e:
-        error_msg = f"Unexpected error sending email: {str(e)}"
+        error_msg = f"Unexpected error sending email: {type(e).__name__}: {str(e)}"
         log_error(error_msg)
         return False
 
@@ -104,10 +116,16 @@ def send_report_with_attachments(report_text, recipients, attachments=None,
     Returns:
         bool: True if successful, False otherwise
     """
-    sender = os.environ.get("SENDER_EMAIL")
-    password = os.environ.get("SENDER_PASSWORD")
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    sender = os.environ.get("SENDER_EMAIL", "").strip()
+    password = os.environ.get("SENDER_PASSWORD", "").strip()
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
+    smtp_port_str = os.environ.get("SMTP_PORT", "587").strip()
+    
+    try:
+        smtp_port = int(smtp_port_str)
+    except ValueError:
+        log_error(f"Invalid SMTP_PORT: {smtp_port_str}")
+        return False
     
     if not sender or not password:
         error_msg = "Email credentials not configured."
@@ -147,7 +165,7 @@ def send_report_with_attachments(report_text, recipients, attachments=None,
                         )
                         msg.attach(part)
         
-        server = smtplib.SMTP(smtp_server, smtp_port)
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
         server.starttls()
         server.login(sender, password)
         server.send_message(msg)
@@ -168,10 +186,10 @@ def verify_email_config():
     Returns:
         tuple: (is_configured: bool, message: str)
     """
-    sender = os.environ.get("SENDER_EMAIL")
-    password = os.environ.get("SENDER_PASSWORD")
-    smtp_server = os.environ.get("SMTP_SERVER")
-    smtp_port = os.environ.get("SMTP_PORT")
+    sender = os.environ.get("SENDER_EMAIL", "").strip()
+    password = os.environ.get("SENDER_PASSWORD", "").strip()
+    smtp_server = os.environ.get("SMTP_SERVER", "").strip()
+    smtp_port = os.environ.get("SMTP_PORT", "").strip()
     
     missing = []
     if not sender:
@@ -188,6 +206,39 @@ def verify_email_config():
         return False, message
     
     return True, "Email configuration complete and ready to send."
+
+
+def test_email_connection():
+    """Test SMTP connection without sending an email.
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    sender = os.environ.get("SENDER_EMAIL", "").strip()
+    password = os.environ.get("SENDER_PASSWORD", "").strip()
+    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com").strip()
+    smtp_port_str = os.environ.get("SMTP_PORT", "587").strip()
+    
+    try:
+        smtp_port = int(smtp_port_str)
+    except ValueError:
+        return False, f"Invalid SMTP_PORT: {smtp_port_str}"
+    
+    if not sender or not password:
+        return False, "Credentials not configured"
+    
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        server.starttls()
+        server.login(sender, password)
+        server.quit()
+        return True, f"✓ SMTP connection successful! Credentials are valid."
+    except smtplib.SMTPAuthenticationError:
+        return False, "❌ SMTP Authentication failed. Check email and password."
+    except smtplib.SMTPException as e:
+        return False, f"❌ SMTP error: {str(e)}"
+    except Exception as e:
+        return False, f"❌ Connection error: {str(e)}"
 
 
 def log_error(message):

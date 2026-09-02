@@ -48,6 +48,14 @@ st.sidebar.subheader("📧 Report & Email")
 email_configured, email_msg = es.verify_email_config()
 if email_configured:
     st.sidebar.success("✓ Email configured")
+    
+    # Add test button
+    if st.sidebar.button("🧪 Test Email Connection"):
+        success, test_msg = es.test_email_connection()
+        if success:
+            st.sidebar.success(test_msg)
+        else:
+            st.sidebar.error(test_msg)
 else:
     st.sidebar.warning("Email not configured. Set .env file to enable delivery.")
     with st.sidebar.expander("Setup instructions"):
@@ -515,25 +523,41 @@ def upload_and_sync():
                 value=f"StreakForge Report - {datetime.now():%B %d, %Y}",
             )
             
-            if st.button("📤 Send Email", type="secondary"):
-                if not email_input:
-                    st.error("Please enter at least one email address.")
-                else:
-                    recipients = [e.strip() for e in email_input.split(",")]
-                    
-                    with st.spinner("Sending email..."):
-                        success = es.send_report(
-                            st.session_state["report_content"],
-                            recipients,
-                            subject=email_subject,
-                            report_format="html" if st.session_state["report_format"] == "HTML" else "text"
-                        )
-                    
-                    if success:
-                        st.success(f"✓ Email sent successfully to {', '.join(recipients)}")
-                        st.balloons()
+            # Create two columns for Send and Test buttons
+            email_btn_col1, email_btn_col2 = st.columns(2)
+            
+            with email_btn_col1:
+                if st.button("📤 Send Email", type="secondary", use_container_width=True):
+                    if not email_input:
+                        st.error("Please enter at least one email address.")
                     else:
-                        st.error("Failed to send email. Check your credentials in .env file.")
+                        recipients = [e.strip() for e in email_input.split(",")]
+                        
+                        with st.spinner("Sending email..."):
+                            try:
+                                success = es.send_report(
+                                    st.session_state["report_content"],
+                                    recipients,
+                                    subject=email_subject,
+                                    report_format="html" if st.session_state["report_format"] == "HTML" else "text"
+                                )
+                                
+                                if success:
+                                    st.success(f"✓ Email sent successfully to {', '.join(recipients)}")
+                                    st.balloons()
+                                else:
+                                    st.error("❌ Failed to send email. Check console for details or use Test Connection button.")
+                            except Exception as e:
+                                st.error(f"❌ Error: {str(e)}")
+            
+            with email_btn_col2:
+                if st.button("🧪 Test Connection", type="secondary", use_container_width=True):
+                    with st.spinner("Testing SMTP connection..."):
+                        success, message = es.test_email_connection()
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
 
 
 # --- 4. Router ---------------------------------------------------------------

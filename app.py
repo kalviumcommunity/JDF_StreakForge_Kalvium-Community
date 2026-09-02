@@ -11,10 +11,14 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import io
+from datetime import datetime
 
 import data_utils as du
 import upload_utils as uu
 import alert_config as ac
+import report_generator as rg
+import email_sender as es
 
 # --- 1. Page config ----------------------------------------------------------
 st.set_page_config(
@@ -37,6 +41,22 @@ st.sidebar.caption(f"Data as of: {du.as_of():%d %b %Y}")
 # which dataset the Upload section is holding.
 if "upload" in st.session_state:
     st.sidebar.caption(f"Uploaded: {st.session_state['upload']['name']}")
+
+# Email configuration status in sidebar
+st.sidebar.divider()
+st.sidebar.subheader("📧 Report & Email")
+email_configured, email_msg = es.verify_email_config()
+if email_configured:
+    st.sidebar.success("✓ Email configured")
+else:
+    st.sidebar.warning("Email not configured. Set .env file to enable delivery.")
+    with st.sidebar.expander("Setup instructions"):
+        st.write(
+            "1. Copy `.env.example` to `.env`\n"
+            "2. Add your SENDER_EMAIL and SENDER_PASSWORD\n"
+            "3. Restart Streamlit app\n"
+            "See [Gmail App Password guide](https://support.google.com/accounts/answer/185833)"
+        )
 
 
 # --- 3a. Overview ------------------------------------------------------------
@@ -436,6 +456,105 @@ def upload_and_sync():
         use_container_width=True,
         height=400,
     )
+
+    st.divider()
+
+    # ---- Step 4 · Report Generation (NEW) -----------------------------------
+    st.header("Step 4 · Generate & Share Report")
+    st.caption("Generate a structured report from current analysis and optionally email it to stakeholders.")
+
+    # Get headline KPIs for report
+    kpis = du.get_kpis()
+    members_df = du.member_table()
+
+    col_gen, col_email = st.columns(2)
+    
+    with col_gen:
+        st.subheader("📋 Generate Report")
+        report_format = st.radio(
+            "Report format",
+            ["Text", "CSV", "HTML"],
+            horizontal=True,
+            help="Choose how to format your report"
+        )
+        
+        if st.button("🔧 Generate Report Now", type="primary"):
+            with st.spinner("Generating report..."):
+                if report_format == "Text":
+                    report_content = rg.generate_report(kpis, members_df)
+                    file_name = f"streakforge_report_{datetime.now():%Y%m%d_%H%M%S}.txt"
+                    mime_type = "text/plain"
+                elif report_format == "CSV":
+                    report_content = rg.generate_report_csv(kpis, members_df)
+                    file_name = f"streakforge_report_{datetime.now():%Y%m%d_%H%M%S}.csv"
+                    mime_type = "text/csv"
+                else:  # HTML
+                    report_content = rg.generate_report_html(kpis, members_df)
+                    file_name = f"streakforge_report_{datetime.now():%Y%m%d_%H%M%S}.html"
+                    mime_type = "text/html"
+                
+                # Store in session state
+                st.session_state["report_content"] = report_content
+                st.session_state["report_format"] = report_format
+                st.session_state["report_name"] = file_name
+                st.session_state["report_mime"] = mime_type
+                st.success(f"✓ {report_format} report generated successfully!")
+        
+        # Show preview if report exists
+        if "report_content" in st.session_state:
+            st.info(f"📄 Report ready: {st.session_state['report_name']}")
+            
+            with st.expander("Preview report"):
+                if st.session_state["report_format"] == "HTML":
+                    st.markdown(st.session_state["report_content"], unsafe_allow_html=True)
+                else:
+                    st.code(st.session_state["report_content"], language="text")
+            
+            st.download_button(
+                f"⬇️ Download {st.session_state['report_format']} Report",
+                data=st.session_state["report_content"].encode("utf-8"),
+                file_name=st.session_state["report_name"],
+                mime=st.session_state["report_mime"],
+            )
+    
+    with col_email:
+        st.subheader("📧 Email Report")
+        
+        if not email_configured:
+            st.warning("Email not configured. See sidebar for setup instructions.")
+        elif "report_content" not in st.session_state:
+            st.info("Generate a report first to send it via email.")
+        else:
+            email_input = st.text_input(
+                "Recipient email(s)",
+                placeholder="stakeholder@example.com",
+                help="Enter single email or comma-separated list"
+            )
+            
+            email_subject = st.text_input(
+                "Email subject",
+                value=f"StreakForge Report - {datetime.now():%B %d, %Y}",
+            )
+            
+            if st.button("📤 Send Email", type="secondary"):
+                if not email_input:
+                    st.error("Please enter at least one email address.")
+                else:
+                    recipients = [e.strip() for e in email_input.split(",")]
+                    
+                    with st.spinner("Sending email..."):
+                        success = es.send_report(
+                            st.session_state["report_content"],
+                            recipients,
+                            subject=email_subject,
+                            report_format="html" if st.session_state["report_format"] == "HTML" else "text"
+                        )
+                    
+                    if success:
+                        st.success(f"✓ Email sent successfully to {', '.join(recipients)}")
+                        st.balloons()
+                    else:
+                        st.error("Failed to send email. Check your credentials in .env file.")
 
 
 # --- 4. Router ---------------------------------------------------------------

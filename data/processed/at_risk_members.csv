@@ -1,0 +1,13 @@
+member_id,risk_score,risk_high_recency,risk_low_frequency,risk_negative_trend,risk_paying_not_showing,recency_days,frequency_total_events,engagement_trend_slope,plan_to_engagement_ratio,gym_branch_id
+MBR-000763,3,True,False,True,True,395,9,-0.0595238095238096,48206.666666666664,BR-039
+MBR-000273,3,True,True,False,True,705,1,,60770.0,BR-034
+MBR-007323,3,True,True,False,True,625,1,,51650.0,BR-013
+MBR-008985,3,True,True,False,True,581,1,,94970.0,BR-015
+MBR-008948,3,True,True,False,True,555,1,,102160.0,BR-018
+MBR-004765,3,True,True,False,True,542,1,,88250.0,BR-034
+MBR-004683,3,True,True,False,True,502,1,,72490.0,BR-027
+MBR-010394,3,True,True,False,True,499,1,,69280.0,BR-038
+MBR-009061,3,True,True,False,True,420,1,,95260.0,BR-027
+MBR-012576,3,True,True,False,True,416,1,,83420.0,BR-033
+MBR-016790,3,True,True,False,True,415,1,,52980.0,BR-026
+MBR-014990,3,True,True,False,True,393,1,,125420.0,BR-033

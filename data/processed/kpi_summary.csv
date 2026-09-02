@@ -1,0 +1,16 @@
+kpi_id,kpi_name,category,value,unit,definition
+kpi_01,Overall Churn Rate,Retention,0.9404,%,Share of members whose latest billing cycle ended > 30d before AS_OF_DATE.
+kpi_02,Overall Retention Rate,Retention,0.0596,%,1 - Overall Churn Rate.
+kpi_03,Active Members,Retention,1011.0,count,Members not classified as churned as of AS_OF_DATE.
+kpi_04,7-Day Activation Rate,Acquisition & Activation,0.1875,%,Share of members logging any gym/app event within 7 days of join_date.
+kpi_05,Renewal Follow-Through Rate,Acquisition & Activation,0.4226,%,"Of members who ever subscribed, the share who renewed at least once more."
+kpi_06,Median Revenue per Member,Revenue,8970.0,INR,Median total ₹ paid per member (median preferred: PR8 flagged heavy right-skew).
+kpi_07,Mean Revenue per Member,Revenue,18711.3199,INR,Mean total ₹ paid per member -- reported alongside the median to show skew.
+kpi_08,Discount Utilisation Rate,Revenue,0.3033,%,Share of distinct renewal records with a discount applied.
+kpi_09,Corporate Tie-Up Mix,Revenue,0.2058,%,Share of distinct renewal records under a corporate tie-up plan.
+kpi_10,Median Plan-to-Engagement Ratio,Revenue,2520.0,INR/session,Median ₹ paid per logged gym session -- surfaces 'paying but not showing up'.
+kpi_11,Avg Weekly Session Rate,Engagement,0.2958,sessions/wk,Mean of each member's trailing-4-week rolling weekly gym-session rate.
+kpi_12,Avg Session Consistency Score,Engagement,0.7737,CV,Mean coefficient-of-variation of gym-session gaps (lower = more regular attendance).
+kpi_13,Avg Streak Length,Product / Streak Health,36.0066,days,Mean of each member's own average streak length across their streak episodes.
+kpi_14,Streak-Break Recovery Rate,Product / Streak Health,0.1482,%,"Of finished streaks, the share where the member returned to the gym within 14 days."
+kpi_15,Churn Rate (data-realistic as-of),Retention,0.8401,%,"Same is_churned logic, re-anchored to the dataset's actual max event date (2025-10-05) instead of the fixed pipeline AS_OF_DATE -- context only."

@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 
 import data_utils as du
 import upload_utils as uu
+import alert_config as ac
 
 # --- 1. Page config ----------------------------------------------------------
 st.set_page_config(
@@ -42,6 +43,16 @@ if "upload" in st.session_state:
 def overview():
     st.title("Business Overview")
     k = du.get_kpis()
+
+    # Compute metrics for alert evaluation
+    current_metrics = {
+        "churn_rate": k["churn"],
+        "avg_order_value": 0.0,  # Not available in headline KPIs
+        "null_percentage": 0.0,  # Not available in headline KPIs
+    }
+    
+    # Render alerts at the top of the page
+    ac.render_alerts(current_metrics)
 
     # KPI row is the FIRST thing on the page — no banner, no intro text.
     st.header("Key Performance Indicators")
@@ -209,6 +220,17 @@ def data_explorer():
         total_cells = len(filtered) * 3
         completeness = (1 - null_count / total_cells) * 100 if total_cells > 0 else 100
         st.metric("Data Quality", f"{completeness:.1f}%")
+
+    # Compute metrics for alert evaluation from filtered data
+    null_percentage = 100 * null_count / total_cells if total_cells > 0 else 0
+    current_metrics = {
+        "churn_rate": 0.0,  # Churn rate not easily calculable from member table
+        "avg_order_value": 0.0,  # AOV not available in member table
+        "null_percentage": null_percentage,
+    }
+    
+    # Render alerts for filtered data quality
+    ac.render_alerts(current_metrics)
 
     st.divider()
 
@@ -397,93 +419,22 @@ def upload_and_sync():
             st.info("No categorical columns in this file.")
 
     st.divider()
-
-    # ---- Downstream usage with filters and charts ----------------------------
-    st.header("Quick Exploration with Filters")
-    st.caption("Proves the uploaded data is usable for filtering and charting. All charts update based on filter selections.")
-
-    if not numeric:
-        st.info("No numeric columns available to chart or filter.")
-        st.stop()
     
-    # Filter selection
-    pick, filt = st.columns([2, 3])
-    
-    with pick:
-        col = st.selectbox("Numeric column to analyze", numeric, key="explore_col")
-    
-    with filt:
-        low, high = float(df[col].min()), float(df[col].max())
-        if low == high:
-            st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
-            bounds = (low, high)
-        else:
-            bounds = st.slider(
-                f"Range of {col}", low, high, (low, high)
-            )
-
-    # Apply filter to create subset - all metrics computed from filtered data
-    subset = df[df[col].between(*bounds)]
-    
-    # Task 4: Handle empty filter results gracefully
-    if subset.empty:
-        st.warning(
-            f"⚠️ **No rows match the selected range for `{col}`.** "
-            f"Try expanding the range between {low:.2f} and {high:.2f}."
-        )
-        st.stop()
-    
-    st.caption(f"📊 Showing {len(subset):,} of {len(df):,} rows in selected range ({len(subset)/len(df)*100:.1f}%)")
-
-    # Task 2: Three different chart types that update with filter selections
-    
-    # Chart 1: Plotly histogram - Distribution of selected column (interactive)
-    st.subheader(f"Distribution of {col}")
-    fig_upload_hist = px.histogram(
-        subset,
-        x=col,
-        nbins=min(30, len(subset)),
-        title=f"Distribution of {col} (filtered)",
-        labels={col: col, "count": "Frequency"},
-        color_discrete_sequence=["#4CAF50"]
+    st.subheader("Data Quality Summary")
+    st.caption(
+        "Completeness and outlier checks. A column flagged here is not "
+        "necessarily bad — but something worth asking about during import."
     )
-    fig_upload_hist.update_layout(showlegend=False, height=280)
-    st.plotly_chart(fig_upload_hist, use_container_width=True)
-
-    # Chart 2: Line chart - Trend if there's an index or sequence
-    if len(subset) > 1:
-        st.subheader(f"Trend of {col}")
-        trend_data = subset[[col]].reset_index(drop=True)
-        st.line_chart(trend_data, height=250)
-
-    # Chart 3: Plotly box plot - Summary statistics visualization
-    st.subheader(f"Summary Statistics for {col}")
-    fig_box_upload = px.box(
-        subset,
-        y=col,
-        title=f"Box Plot: {col}",
-        labels={col: col}
-    )
-    fig_box_upload.update_layout(showlegend=False, height=280)
-    st.plotly_chart(fig_box_upload, use_container_width=True)
-
-    # Additional reactive KPIs for filtered subset
-    st.subheader("Filtered Data Statistics")
-    s1, s2, s3, s4 = st.columns(4)
-    with s1:
-        st.metric("Filtered Rows", f"{len(subset):,}")
-    with s2:
-        st.metric("Min", f"{subset[col].min():.2f}")
-    with s3:
-        st.metric("Mean", f"{subset[col].mean():.2f}")
-    with s4:
-        st.metric("Max", f"{subset[col].max():.2f}")
-
-    st.download_button(
-        "Download filtered rows",
-        data=subset.to_csv(index=False).encode("utf-8"),
-        file_name=f"filtered_{uploaded.name.rsplit('.', 1)[0]}.csv",
-        mime="text/csv",
+    summary = uu.column_summary(df)
+    st.dataframe(
+        summary.style.background_gradient(
+            subset=["null_pct"],
+            cmap="RdYlGn_r",
+            vmin=0,
+            vmax=100,
+        ),
+        use_container_width=True,
+        height=400,
     )
 
 

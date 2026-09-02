@@ -67,7 +67,6 @@ def overview():
     # Compute metrics for alert evaluation
     current_metrics = {
         "churn_rate": k["churn"],
-        "avg_order_value": 0.0,  # Not available in headline KPIs
         "null_percentage": 0.0,  # Not available in headline KPIs
     }
     
@@ -245,7 +244,6 @@ def data_explorer():
     null_percentage = 100 * null_count / total_cells if total_cells > 0 else 0
     current_metrics = {
         "churn_rate": 0.0,  # Churn rate not easily calculable from member table
-        "avg_order_value": 0.0,  # AOV not available in member table
         "null_percentage": null_percentage,
     }
     
@@ -437,25 +435,6 @@ def upload_and_sync():
             )
         else:
             st.info("No categorical columns in this file.")
-
-    st.divider()
-    
-    st.subheader("Data Quality Summary")
-    st.caption(
-        "Completeness and outlier checks. A column flagged here is not "
-        "necessarily bad — but something worth asking about during import."
-    )
-    summary = uu.column_summary(df)
-    st.dataframe(
-        summary.style.background_gradient(
-            subset=["null_pct"],
-            cmap="RdYlGn_r",
-            vmin=0,
-            vmax=100,
-        ),
-        use_container_width=True,
-        height=400,
-    )
 
     st.divider()
 

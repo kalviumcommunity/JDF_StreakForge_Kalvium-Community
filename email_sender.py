@@ -5,6 +5,16 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from pathlib import Path
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(env_path)
+except ImportError:
+    # If python-dotenv not installed, use environment variables directly
+    pass
 
 
 def send_report(report_text, recipients, subject="StreakForge Retention Report", report_format="text"):

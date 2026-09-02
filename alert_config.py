@@ -10,13 +10,6 @@ ALERT_THRESHOLDS = {
         "severity": "critical",
         "message": "Churn exceeds safe limit. Investigate retention.",
     },
-    "avg_order_value": {
-        "metric": "Avg Order Value",
-        "threshold": 30.0,
-        "direction": "below",
-        "severity": "warning",
-        "message": "AOV below target. Check pricing and product mix.",
-    },
     "null_percentage": {
         "metric": "Data Quality",
         "threshold": 5.0,

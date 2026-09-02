@@ -1,0 +1,4 @@
+{
+  "input": "data/raw/test.csv",
+  "output": "output"
+}

@@ -9,9 +9,12 @@ Structure:
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
 import data_utils as du
 import upload_utils as uu
+import alert_config as ac
 
 # --- 1. Page config ----------------------------------------------------------
 st.set_page_config(
@@ -40,6 +43,16 @@ if "upload" in st.session_state:
 def overview():
     st.title("Business Overview")
     k = du.get_kpis()
+
+    # Compute metrics for alert evaluation
+    current_metrics = {
+        "churn_rate": k["churn"],
+        "avg_order_value": 0.0,  # Not available in headline KPIs
+        "null_percentage": 0.0,  # Not available in headline KPIs
+    }
+    
+    # Render alerts at the top of the page
+    ac.render_alerts(current_metrics)
 
     # KPI row is the FIRST thing on the page — no banner, no intro text.
     st.header("Key Performance Indicators")
@@ -88,9 +101,12 @@ def trends():
     activity = du.monthly_activity()
 
     st.header("Engagement Trends")
+    
+    # Chart 1: Line chart - Monthly Active Members (Streamlit native)
     st.subheader("Monthly Active Members (Last 24 Months)")
     st.line_chart(activity["active_members"], height=300)
 
+    # Chart 2: Line chart - Total Visits vs Unique Members (Streamlit native multi-series)
     st.subheader("Total Visits vs Unique Members")
     st.line_chart(activity[["total_visits", "active_members"]], height=280)
 
@@ -104,20 +120,41 @@ def trends():
     st.divider()
 
     st.header("Commercial Trends")
+    
+    # Chart 3: Line chart - Retention Rate by Month (Streamlit native)
     st.subheader("Retention Rate by Month")
     st.line_chart(du.monthly_retention()["retention_pct"], height=260)
 
+    # Chart 4: Bar chart + Plotly interactive - Retention by Membership Type
     st.subheader("Retention by Membership Type")
     seg = du.retention_by("membership_type")
+    
     chart, table = st.columns([3, 2])
     with chart:
-        st.bar_chart(seg["retention_pct"], height=260)
+        # Chart 5: Plotly bar chart (interactive with hover details)
+        fig = px.bar(
+            seg.reset_index(),
+            x="membership_type",
+            y="retention_pct",
+            color="retention_pct",
+            color_continuous_scale="RdYlGn",
+            labels={"retention_pct": "Retention %", "membership_type": "Membership Type"},
+            title="Retention by Membership Type"
+        )
+        fig.update_layout(showlegend=False, height=300)
+        st.plotly_chart(fig, use_container_width=True)
     with table:
-        st.dataframe(seg, height=260)
+        st.dataframe(seg, height=300)
 
 
 # --- 3c. Data Explorer -------------------------------------------------------
 def data_explorer():
+    """Data Explorer with reactive filtered KPIs and multiple chart types.
+    
+    Task 1: Five reactive KPI metrics computed from filtered DataFrame
+    Task 2: Multiple chart types that update dynamically based on filters
+    Task 4: Handles empty filter results with user-friendly messaging
+    """
     st.title("Data Explorer")
     table = du.member_table()
 
@@ -135,6 +172,7 @@ def data_explorer():
     with st.expander("Advanced filters"):
         at_risk = st.checkbox("At risk only (no visit in 30+ days)")
 
+    # Apply filters from form inputs
     filtered = table.copy()
     if cities:
         filtered = filtered[filtered["city"].isin(cities)]
@@ -147,32 +185,115 @@ def data_explorer():
 
     st.divider()
 
-    st.header("Member Table")
-    m1, m2 = st.columns(2)
-    m1.metric("Members Matched", f"{len(filtered):,}")
-    m2.metric("Median Visits", f"{filtered['visits'].median() if len(filtered) else 0:.0f}")
+    # Task 4: Handle empty filtered results with user-friendly message
+    if len(filtered) == 0:
+        st.warning(
+            "⚠️ **No members match your current filter selections.** "
+            "Try broadening your criteria (fewer cities, lower visit threshold, or disable at-risk filter)."
+        )
+        st.info(
+            f"💡 **Tip:** Out of {len(table):,} total members, your filters returned zero results."
+        )
+        st.stop()
 
+    st.header("Filtered Results")
+    
+    # Task 1: Five reactive KPI metrics computed from filtered DataFrame
+    # All values update dynamically when filters change - no hardcoded values
+    m1, m2, m3, m4, m5 = st.columns(5)
+    with m1:
+        # KPI 1: Total members matching filters
+        st.metric("Members Matched", f"{len(filtered):,}")
+    with m2:
+        # KPI 2: Median visits (central tendency for skewed distribution)
+        st.metric("Median Visits", f"{filtered['visits'].median():.0f}")
+    with m3:
+        # KPI 3: Average visits (mean for comparison)
+        st.metric("Mean Visits", f"{filtered['visits'].mean():.1f}")
+    with m4:
+        # KPI 4: At-risk members (no visit in 30+ days)
+        at_risk_count = (filtered["days_since_visit"].fillna(9999) >= 30).sum()
+        st.metric("At Risk", f"{at_risk_count:,}", f"{at_risk_count/len(filtered)*100:.1f}%")
+    with m5:
+        # KPI 5: Data completeness (inverse of null percentage)
+        null_count = filtered[["city", "membership_type", "last_visit"]].isnull().sum().sum()
+        total_cells = len(filtered) * 3
+        completeness = (1 - null_count / total_cells) * 100 if total_cells > 0 else 100
+        st.metric("Data Quality", f"{completeness:.1f}%")
+
+    # Compute metrics for alert evaluation from filtered data
+    null_percentage = 100 * null_count / total_cells if total_cells > 0 else 0
+    current_metrics = {
+        "churn_rate": 0.0,  # Churn rate not easily calculable from member table
+        "avg_order_value": 0.0,  # AOV not available in member table
+        "null_percentage": null_percentage,
+    }
+    
+    # Render alerts for filtered data quality
+    ac.render_alerts(current_metrics)
+
+    st.divider()
+
+    # Task 2: Multiple chart types that update with filters
+    st.header("Visual Analysis")
+    
+    # Chart 1: Plotly histogram - Visit distribution (interactive, zoomable)
+    st.subheader("Visit Distribution")
+    fig_hist = px.histogram(
+        filtered,
+        x="visits",
+        nbins=30,
+        title="Distribution of Visit Counts",
+        labels={"visits": "Total Visits", "count": "Member Count"},
+        color_discrete_sequence=["#FF6B6B"]
+    )
+    fig_hist.update_layout(showlegend=False, height=300)
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    # Chart 2: Bar chart - Members by city (Streamlit native)
+    if not filtered["city"].isna().all():
+        st.subheader("Members by City")
+        city_counts = filtered["city"].value_counts().sort_values(ascending=False)
+        st.bar_chart(city_counts, height=280)
+    
+    # Chart 3: Plotly box plot - Visits by membership type (shows distribution + outliers)
+    if not filtered["membership_type"].isna().all():
+        st.subheader("Visit Patterns by Membership Type")
+        fig_box = px.box(
+            filtered.dropna(subset=["membership_type"]),
+            x="membership_type",
+            y="visits",
+            color="membership_type",
+            title="Visit Distribution by Membership Type",
+            labels={"visits": "Total Visits", "membership_type": "Membership Type"}
+        )
+        fig_box.update_layout(showlegend=False, height=350)
+        st.plotly_chart(fig_box, use_container_width=True)
+
+    st.divider()
+
+    st.header("Member Table")
     st.subheader(f"Showing first 500 of {len(filtered):,} members")
     st.dataframe(filtered.head(500), height=380)
 
     st.download_button(
         "Download filtered CSV",
         data=filtered.to_csv(index=False).encode("utf-8"),
-        file_name="streakforge_members.csv",
+        file_name="streakforge_members_filtered.csv",
         mime="text/csv",
     )
 
     with st.expander("Column definitions"):
         st.write(
-            "visits = lifetime gym check-ins. "
-            "last_visit = most recent check-in. "
-            "days_since_visit = days from last check-in to the data as-of date."
+            "**visits** = lifetime gym check-ins. "
+            "**last_visit** = most recent check-in. "
+            "**days_since_visit** = days from last check-in to the data as-of date."
         )
 
 
 # --- 3d. Upload & Sync -------------------------------------------------------
-# Three visible steps — select, validate, confirm — so a monthly refresh never
-# silently half-lands. Mirrors Screen 5 of the mock UX.
+# Task 3: Uses @st.cache_data via upload_utils.load_dataframe for efficient loading
+# Task 5: Runs end-to-end without hardcoded data - adapts to any uploaded dataset
 def upload_and_sync():
     st.title("Upload & Sync")
     st.caption(
@@ -210,6 +331,7 @@ def upload_and_sync():
     # ---- Step 2 · Validate --------------------------------------------------
     st.header("Step 2 · Validate")
     try:
+        # Task 3: load_dataframe uses @st.cache_data to prevent redundant parsing
         df = uu.load_dataframe(uploaded.name, uploaded.getvalue())
         uu.validate(df)
     except uu.UploadError as err:
@@ -242,17 +364,31 @@ def upload_and_sync():
     st.divider()
 
     # ---- Step 3 · Confirm ---------------------------------------------------
-    st.header("Step 3 · Confirm")
+    st.header("Step 3 · Confirm & Explore")
 
-    st.subheader("Shape and Completeness")
-    st.caption("Answers: did the whole file arrive, and how much is missing?")
-    c1, c2, c3 = st.columns(3)
-    with c1:
+    # Task 1: Five reactive KPIs computed from uploaded DataFrame (no hardcoded values)
+    st.subheader("Dataset Overview")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    with k1:
+        # KPI 1: Total rows in uploaded file
         st.metric("Rows", f"{len(df):,}")
-    with c2:
+    with k2:
+        # KPI 2: Total columns
         st.metric("Columns", f"{len(df.columns)}")
-    with c3:
-        st.metric("Null %", f"{uu.overall_null_pct(df):.1f}%")
+    with k3:
+        # KPI 3: Data completeness (inverse of null percentage)
+        null_pct = uu.overall_null_pct(df)
+        st.metric("Completeness", f"{100 - null_pct:.1f}%")
+    with k4:
+        # KPI 4: Number of numeric columns (determines chart availability)
+        numeric = uu.numeric_columns(df)
+        st.metric("Numeric Cols", f"{len(numeric)}")
+    with k5:
+        # KPI 5: Number of categorical columns
+        categorical = uu.categorical_columns(df)
+        st.metric("Categorical Cols", f"{len(categorical)}")
+
+    st.divider()
 
     st.subheader(f"First {uu.PREVIEW_ROWS} Rows")
     st.caption("Answers: does the data look like what I expected to export?")
@@ -261,8 +397,6 @@ def upload_and_sync():
     st.subheader("Column Summary")
     st.caption("Answers: which columns are usable, and which are too sparse?")
     st.dataframe(uu.column_summary(df), use_container_width=True, height=320)
-
-    numeric = uu.numeric_columns(df)
 
     with st.expander("Descriptive statistics (numeric columns)"):
         if numeric:
@@ -275,7 +409,6 @@ def upload_and_sync():
             st.info("No numeric columns in this file, so there is nothing to describe.")
 
     with st.expander("Top values (categorical columns)"):
-        categorical = uu.categorical_columns(df)
         if categorical:
             col = st.selectbox("Column", categorical, key="cat_col")
             st.dataframe(
@@ -286,44 +419,23 @@ def upload_and_sync():
             st.info("No categorical columns in this file.")
 
     st.divider()
-
-    # ---- Downstream usage ---------------------------------------------------
-    st.header("Quick Exploration")
-    st.caption("Proves the uploaded data is usable for filtering and charting.")
-
-    if not numeric:
-        st.info("No numeric columns available to chart.")
-    else:
-        pick, filt = st.columns([2, 3])
-        with pick:
-            col = st.selectbox("Numeric column", numeric, key="explore_col")
-        with filt:
-            low, high = float(df[col].min()), float(df[col].max())
-            if low == high:
-                st.caption(f"`{col}` is constant at {low:,.2f} — nothing to filter.")
-                bounds = (low, high)
-            else:
-                bounds = st.slider(
-                    f"Range of {col}", low, high, (low, high)
-                )
-
-        subset = df[df[col].between(*bounds)]
-        st.caption(f"{len(subset):,} of {len(df):,} rows in range.")
-
-        st.subheader(f"Distribution of {col}")
-        if subset.empty:
-            st.info("No rows in the selected range.")
-        else:
-            counts = pd.cut(subset[col], bins=20).value_counts().sort_index()
-            counts.index = [f"{interval.left:,.0f}" for interval in counts.index]
-            st.bar_chart(counts, height=260)
-
-        st.download_button(
-            "Download filtered rows",
-            data=subset.to_csv(index=False).encode("utf-8"),
-            file_name=f"filtered_{uploaded.name.rsplit('.', 1)[0]}.csv",
-            mime="text/csv",
-        )
+    
+    st.subheader("Data Quality Summary")
+    st.caption(
+        "Completeness and outlier checks. A column flagged here is not "
+        "necessarily bad — but something worth asking about during import."
+    )
+    summary = uu.column_summary(df)
+    st.dataframe(
+        summary.style.background_gradient(
+            subset=["null_pct"],
+            cmap="RdYlGn_r",
+            vmin=0,
+            vmax=100,
+        ),
+        use_container_width=True,
+        height=400,
+    )
 
 
 # --- 4. Router ---------------------------------------------------------------

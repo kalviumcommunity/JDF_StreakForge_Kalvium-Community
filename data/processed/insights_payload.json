@@ -1,0 +1,207 @@
+{
+  "as_of_date": "2026-08-14",
+  "kpis": [
+    {
+      "kpi_id": "kpi_01",
+      "kpi_name": "Overall Churn Rate",
+      "category": "Retention",
+      "value": 0.9404,
+      "unit": "%",
+      "value_display": "94.0%",
+      "card_color": "#D95F02",
+      "context_note": "See kpi_15 \u2014 data-realistic as-of gives 84.0% (context only, does not replace this figure)."
+    },
+    {
+      "kpi_id": "kpi_02",
+      "kpi_name": "Overall Retention Rate",
+      "category": "Retention",
+      "value": 0.0596,
+      "unit": "%",
+      "value_display": "6.0%",
+      "card_color": "#D95F02",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_03",
+      "kpi_name": "Active Members",
+      "category": "Retention",
+      "value": 1011.0,
+      "unit": "count",
+      "value_display": "1,011",
+      "card_color": "#D95F02",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_04",
+      "kpi_name": "7-Day Activation Rate",
+      "category": "Acquisition & Activation",
+      "value": 0.1875,
+      "unit": "%",
+      "value_display": "18.8%",
+      "card_color": "#2E5EAA",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_05",
+      "kpi_name": "Renewal Follow-Through Rate",
+      "category": "Acquisition & Activation",
+      "value": 0.4226,
+      "unit": "%",
+      "value_display": "42.3%",
+      "card_color": "#2E5EAA",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_06",
+      "kpi_name": "Median Revenue per Member",
+      "category": "Revenue",
+      "value": 8970.0,
+      "unit": "INR",
+      "value_display": "\u20b98,970",
+      "card_color": "#F2C94C",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_07",
+      "kpi_name": "Mean Revenue per Member",
+      "category": "Revenue",
+      "value": 18711.3199,
+      "unit": "INR",
+      "value_display": "\u20b918,711",
+      "card_color": "#F2C94C",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_08",
+      "kpi_name": "Discount Utilisation Rate",
+      "category": "Revenue",
+      "value": 0.3033,
+      "unit": "%",
+      "value_display": "30.3%",
+      "card_color": "#F2C94C",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_09",
+      "kpi_name": "Corporate Tie-Up Mix",
+      "category": "Revenue",
+      "value": 0.2058,
+      "unit": "%",
+      "value_display": "20.6%",
+      "card_color": "#F2C94C",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_10",
+      "kpi_name": "Median Plan-to-Engagement Ratio",
+      "category": "Revenue",
+      "value": 2520.0,
+      "unit": "INR/session",
+      "value_display": "\u20b92,520/session",
+      "card_color": "#F2C94C",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_11",
+      "kpi_name": "Avg Weekly Session Rate",
+      "category": "Engagement",
+      "value": 0.2958,
+      "unit": "sessions/wk",
+      "value_display": "0.30/wk",
+      "card_color": "#1B9E77",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_12",
+      "kpi_name": "Avg Session Consistency Score",
+      "category": "Engagement",
+      "value": 0.7737,
+      "unit": "CV",
+      "value_display": "0.77",
+      "card_color": "#1B9E77",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_13",
+      "kpi_name": "Avg Streak Length",
+      "category": "Product / Streak Health",
+      "value": 36.0066,
+      "unit": "days",
+      "value_display": "36.0 days",
+      "card_color": "#7F8C8D",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_14",
+      "kpi_name": "Streak-Break Recovery Rate",
+      "category": "Product / Streak Health",
+      "value": 0.1482,
+      "unit": "%",
+      "value_display": "14.8%",
+      "card_color": "#7F8C8D",
+      "context_note": NaN
+    },
+    {
+      "kpi_id": "kpi_15",
+      "kpi_name": "Churn Rate (data-realistic as-of)",
+      "category": "Retention",
+      "value": 0.8401,
+      "unit": "%",
+      "value_display": "84.0%",
+      "card_color": "#D95F02",
+      "context_note": "Supplementary context for kpi_01 only \u2014 not the pipeline's authoritative churn definition."
+    }
+  ],
+  "insights": [
+    {
+      "insight_id": "INS-01",
+      "headline": "Churn looks catastrophic (94%) but is largely a measurement artefact, not a business crisis",
+      "narrative": "The pipeline's fixed AS_OF_DATE (2026-08-14) sits well past the dataset's actual last event (2025-10-05), so almost every member reads as churned. Re-anchoring to a data-realistic as-of date drops churn to 84.0% (kpi_15) \u2014 still high, but the headline 94.0% should never be quoted to leadership without this context.",
+      "supporting_evidence": "kpi_01 vs kpi_15 (kpi_summary.csv); PR9/PR11 AS_OF_DATE decision.",
+      "business_impact": "High \u2014 wrong framing risks over-reacting (e.g. panic win-back spend) to a partly artefactual stat.",
+      "audience": "Leadership / Finance",
+      "recommended_action": "Always report churn with both figures side by side; treat kpi_15 as the operationally meaningful number.",
+      "confidence": "High"
+    },
+    {
+      "insight_id": "INS-02",
+      "headline": "Activation, not renewal, is where the platform loses members",
+      "narrative": "Only 18.8% of members log any activity within 7 days of joining (PR10 funnel: 81.2% drop-off at this single stage \u2014 the largest of any funnel step). No acquisition channel or demographic segment explains it (all Cram\u00e9r's V < 0.1, PR12).",
+      "supporting_evidence": "kpi_04 (kpi_summary.csv); activation_segment_comparison.csv; PR10 funnel.",
+      "business_impact": "High \u2014 the single highest-leverage retention lever found in the dataset.",
+      "audience": "Product / Growth",
+      "recommended_action": "Prioritise onboarding UX/timing experiments over channel-targeted acquisition spend.",
+      "confidence": "Medium-High"
+    },
+    {
+      "insight_id": "INS-03",
+      "headline": "Activation is quietly improving \u2014 the funnel is not 'getting worse'",
+      "narrative": "Monthly cohort activation rate rose from ~14.6% (late 2024) to ~36.6% (Sep 2025) \u2014 the most encouraging non-obvious finding in the dataset, and the opposite of what the 81.2% headline drop-off implies in isolation.",
+      "supporting_evidence": "activation_cohort_trend.csv; PR12 \u00a712.1(b).",
+      "business_impact": "Medium \u2014 reframes the narrative from 'broken funnel' to 'improving, keep investing'.",
+      "audience": "Leadership / Product",
+      "recommended_action": "Investigate what changed operationally in early 2025 and double down on it.",
+      "confidence": "Medium"
+    },
+    {
+      "insight_id": "INS-04",
+      "headline": "Churn and activation are platform-wide problems, not a branch-operations issue",
+      "narrative": "0 of 40 branches are statistical churn-rate outliers, and 0 branches compound a churn anomaly with bottom-quartile activation \u2014 ruling out 'a few bad branches' as the root cause.",
+      "supporting_evidence": "branch_risk_summary.csv (0/40 flagged); PR11 \u00a711.2.2, PR12 \u00a712.1(c).",
+      "business_impact": "Medium \u2014 redirects investigation away from branch staffing/ops toward product/onboarding.",
+      "audience": "Operations",
+      "recommended_action": "Do not fund a branch-level operational audit as a churn fix; focus centrally on onboarding.",
+      "confidence": "Medium"
+    },
+    {
+      "insight_id": "INS-05",
+      "headline": "A small, well-defined 'paid once, never engaged' cohort is ready for direct outreach",
+      "narrative": "12 currently-active members trigger nearly all composite risk signals \u2014 mostly single-event members paying \u20b948K\u2013\u20b9102K per logged session. A short, actionable list, not a diffuse population-wide signal.",
+      "supporting_evidence": "at_risk_members.csv (12 rows); PR11 \u00a711.2.3.",
+      "business_impact": "Medium \u2014 small volume, but high win-back value per member and low targeting cost.",
+      "audience": "Customer Success",
+      "recommended_action": "Direct outreach (call / PT trial offer) to the 12 flagged members within the next billing cycle.",
+      "confidence": "High"
+    }
+  ]
+}

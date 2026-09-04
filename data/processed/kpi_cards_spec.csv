@@ -1,0 +1,16 @@
+kpi_id,kpi_name,category,value,unit,value_display,card_color,context_note
+kpi_01,Overall Churn Rate,Retention,0.9404,%,94.0%,#D95F02,"See kpi_15 — data-realistic as-of gives 84.0% (context only, does not replace this figure)."
+kpi_02,Overall Retention Rate,Retention,0.0596,%,6.0%,#D95F02,
+kpi_03,Active Members,Retention,1011.0,count,"1,011",#D95F02,
+kpi_04,7-Day Activation Rate,Acquisition & Activation,0.1875,%,18.8%,#2E5EAA,
+kpi_05,Renewal Follow-Through Rate,Acquisition & Activation,0.4226,%,42.3%,#2E5EAA,
+kpi_06,Median Revenue per Member,Revenue,8970.0,INR,"₹8,970",#F2C94C,
+kpi_07,Mean Revenue per Member,Revenue,18711.3199,INR,"₹18,711",#F2C94C,
+kpi_08,Discount Utilisation Rate,Revenue,0.3033,%,30.3%,#F2C94C,
+kpi_09,Corporate Tie-Up Mix,Revenue,0.2058,%,20.6%,#F2C94C,
+kpi_10,Median Plan-to-Engagement Ratio,Revenue,2520.0,INR/session,"₹2,520/session",#F2C94C,
+kpi_11,Avg Weekly Session Rate,Engagement,0.2958,sessions/wk,0.30/wk,#1B9E77,
+kpi_12,Avg Session Consistency Score,Engagement,0.7737,CV,0.77,#1B9E77,
+kpi_13,Avg Streak Length,Product / Streak Health,36.0066,days,36.0 days,#7F8C8D,
+kpi_14,Streak-Break Recovery Rate,Product / Streak Health,0.1482,%,14.8%,#7F8C8D,
+kpi_15,Churn Rate (data-realistic as-of),Retention,0.8401,%,84.0%,#D95F02,Supplementary context for kpi_01 only — not the pipeline's authoritative churn definition.

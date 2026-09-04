@@ -1,0 +1,81 @@
+name: Data Validation
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run data validation
+        id: validation
+        run: |
+          python validate_data.py data/processed/member_behaviour_summary.csv \
+            --schema schema.json \
+            --report validation_report.json
+
+      - name: Run validation unit tests
+        run: pytest tests/test_validate_data.py -q
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation_report.json
+          if-no-files-found: ignore
+
+      - name: Write job summary
+        if: always()
+        run: |
+          if [ -f validation_report.json ]; then
+            {
+              echo "## Data Validation"
+              python - <<'PY'
+import json
+r = json.load(open("validation_report.json"))
+s = r["summary"]
+print(f"- Dataset: {r['dataset']}")
+print(f"- Rows: {r['rows']} x {r['columns']} columns")
+print(f"- Result: **{r['status']}** — {s['passed']} passed, {s['failed']} failed")
+print("### Checks")
+for c in r["checks"]:
+    icon = "✅" if c["status"] == "PASS" else "❌"
+    print(f"- {icon} {c['check']}")
+    for e in c.get("errors", []):
+        print(f"  - {e}")
+PY
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Validation report was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Notify team on validation failure
+        if: failure()
+        env:
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          NOTIFY_RECIPIENTS: ${{ secrets.NOTIFY_RECIPIENTS }}
+        run: python notify_failure.py validation_report.json

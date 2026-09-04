@@ -1,0 +1,245 @@
+{
+  "dataset": "data/processed/member_behaviour_summary.csv",
+  "description": "StreakForge member behaviour summary - schema contract enforced by validate_data.py on every push/PR.",
+  "min_rows": 1000,
+  "primary_key": "member_id",
+  "allow_extra_columns": false,
+  "columns": {
+    "member_id": {
+      "dtype": "string",
+      "required": true,
+      "unique": true,
+      "max_null_pct": 0
+    },
+    "age": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 120,
+      "max_null_pct": 10
+    },
+    "gender": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["Female", "Male", "Other"],
+      "max_null_pct": 0
+    },
+    "city": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "Ahmedabad", "Amritsar", "Bengaluru", "Bhopal", "Chandigarh", "Chennai",
+        "Coimbatore", "Dehradun", "Delhi", "Gurugram", "Guwahati", "Hyderabad",
+        "Indore", "Jaipur", "Jalandhar", "Kolkata", "Lucknow", "Mumbai", "Mysore",
+        "Nagpur", "Nashik", "Patna", "Pune", "Ranchi", "Surat", "Vadodara",
+        "Visakhapatnam"
+      ],
+      "max_null_pct": 0
+    },
+    "city_tier": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["Tier1", "Tier2", "Tier3"],
+      "max_null_pct": 0
+    },
+    "state": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "Andhra Pradesh", "Assam", "Bihar", "Delhi", "Gujarat", "Haryana",
+        "Jharkhand", "Karnataka", "Madhya Pradesh", "Maharashtra", "Punjab",
+        "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Uttarakhand",
+        "West Bengal"
+      ],
+      "max_null_pct": 0
+    },
+    "occupation": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "Business Owner", "Freelancer", "Govt Employee", "Homemaker",
+        "Salaried-IT", "Salaried-Non IT", "Student"
+      ],
+      "max_null_pct": 0
+    },
+    "marital_status": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["Married", "Other", "Single"],
+      "max_null_pct": 0
+    },
+    "membership_type": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["Basic", "PT-Combo", "Premium", "Standard"],
+      "max_null_pct": 0
+    },
+    "referral_source": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "Aggregator App", "Corporate Tie-up", "Friend Referral",
+        "Instagram Ad", "Justdial", "Walk-in"
+      ],
+      "max_null_pct": 0
+    },
+    "preferred_workout_time": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "Afternoon", "Early Morning (5-7am)", "Evening (6-9pm)",
+        "Late Night", "Morning"
+      ],
+      "max_null_pct": 0
+    },
+    "has_personal_trainer": {
+      "dtype": "bool",
+      "required": true,
+      "max_null_pct": 0
+    },
+    "primary_goal": {
+      "dtype": "string",
+      "required": true,
+      "allowed": [
+        "General Fitness", "Muscle Gain", "Pre-Wedding Prep", "Rehab",
+        "Sports Training", "Weight Loss"
+      ],
+      "max_null_pct": 0
+    },
+    "signup_channel": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["App", "In-person", "Website"],
+      "max_null_pct": 0
+    },
+    "join_date": {
+      "dtype": "datetime",
+      "required": true,
+      "max_null_pct": 0
+    },
+    "is_churned": {
+      "dtype": "bool",
+      "required": true,
+      "max_null_pct": 0
+    },
+    "plan_to_engagement_ratio": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 10
+    },
+    "engagement_trend_slope": {
+      "dtype": "float",
+      "required": true,
+      "min": -1,
+      "max": 1,
+      "max_null_pct": 55
+    },
+    "total_amount_paid_inr": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 0
+    },
+    "avg_discount_pct": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 100,
+      "max_null_pct": 0
+    },
+    "avg_price_per_day_inr": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 0
+    },
+    "n_renewals": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 0
+    },
+    "avg_days_before_expiry_renewed": {
+      "dtype": "float",
+      "required": true,
+      "min": -60,
+      "max": 60,
+      "max_null_pct": 0
+    },
+    "avg_streak_length_days": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 2000,
+      "max_null_pct": 20
+    },
+    "max_streak_length_days": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 2000,
+      "max_null_pct": 20
+    },
+    "n_streaks": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 100,
+      "max_null_pct": 20
+    },
+    "total_gym_sessions": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 1000,
+      "max_null_pct": 10
+    },
+    "avg_sessions_per_week_rolling_4wk": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 10,
+      "max_null_pct": 10
+    },
+    "session_consistency_score": {
+      "dtype": "float",
+      "required": true,
+      "min": 0,
+      "max": 10,
+      "max_null_pct": 30
+    },
+    "tenure_days_at_last_event": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 0
+    },
+    "recency_days": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max": 5000,
+      "max_null_pct": 0
+    },
+    "frequency_total_events": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max": 10000,
+      "max_null_pct": 0
+    },
+    "monetary_total_paid": {
+      "dtype": "int",
+      "required": true,
+      "min": 0,
+      "max_null_pct": 0
+    },
+    "behavioural_segment": {
+      "dtype": "string",
+      "required": true,
+      "allowed": ["At Risk", "Champions", "Dormant / Lapsed", "Loyal / Engaged"],
+      "max_null_pct": 0
+    }
+  }
+}

@@ -58,11 +58,19 @@ _Last updated: 20 August 2026_
 .
 ├── app.py                     # Streamlit shell: nav, sections, layout
 ├── data_utils.py              # Cached loaders + KPI and aggregation logic
+├── validate_data.py           # CI schema/quality gate (exit 1 on failure)
+├── schema.json                # Declarative schema contract for the gate
+├── notify_failure.py          # Failure-alert email via email_sender.py
 ├── requirements.txt           # Pinned dependencies
+├── .github/workflows/
+│   ├── pipeline.yml           # Weekly scheduled pipeline
+│   └── validate.yml           # Data validation on push/PR (merge gate)
 ├── tests/
-│   └── test_app_smoke.py      # 7 headless AppTest checks
+│   ├── test_app_smoke.py      # Headless AppTest checks
+│   └── test_validate_data.py  # 10 pass/fail cases for the validator
 ├── data/
-│   └── raw/                   # Source CSV extracts (5 files, ~27 MB)
+│   ├── raw/                   # Source CSV extracts (5 files, ~27 MB)
+│   └── processed/             # Cleaned + aggregated outputs (incl. contract target)
 ├── docs/                      # Project documentation
 └── notebooks/                 # EDA and exploration
 ```
@@ -91,6 +99,107 @@ python -m pytest tests -q          # expect: 7 passed
 > command. With a Conda base environment active, bare `pytest` resolves to Conda's
 > interpreter — which has no Streamlit installed — and collection fails on
 > `ModuleNotFoundError`.
+
+---
+
+---
+
+## 🛡️ Automated Data Validation (CI Gate)
+
+Every push to `main`, `develop`, or a `feature/*` branch (and every PR into `main`)
+runs `.github/workflows/validate.yml`, which executes `validate_data.py` against
+`data/processed/member_behaviour_summary.csv`. If any check fails, the script exits
+`1`, the GitHub Actions job fails, and — with branch protection enabled — the merge
+is blocked.
+
+### What schema drift is
+
+Schema drift is when the *shape* of the data changes without warning: a column is
+renamed (`member_id` → `mem_id`), removed, added, or changes type (`int` → `string`).
+A billing update adds a `discount_code` column; a CRM migration renames
+`customer_id` to `account_id`; an API starts returning amounts as strings. Each one
+silently breaks downstream dashboards. Validating on every push catches the drift the
+moment it appears, in the PR of the person who introduced it — not Monday morning
+when the dashboard errors.
+
+### The contract: `schema.json`
+
+The expected schema lives in a declarative JSON contract — not inline in the YAML —
+so changing it is a deliberate, reviewable data decision:
+
+```json
+{
+  "dataset": "data/processed/member_behaviour_summary.csv",
+  "min_rows": 1000,
+  "primary_key": "member_id",
+  "allow_extra_columns": false,
+  "columns": {
+    "member_id":              { "dtype": "string", "unique": true, "max_null_pct": 0 },
+    "membership_type":        { "dtype": "string", "allowed": ["Basic", "Standard", "Premium", "PT-Combo"] },
+    "total_amount_paid_inr":  { "dtype": "int", "min": 0 },
+    "avg_streak_length_days": { "dtype": "float", "min": 0, "max_null_pct": 20 },
+    "behavioural_segment":    { "dtype": "string", "allowed": ["At Risk", "Champions", "Dormant / Lapsed", "Loyal / Engaged"] }
+  }
+}
+```
+
+### Checks performed (each logs `PASS:` or `ERROR:`)
+
+| # | Check | What it catches |
+|---|---|---|
+| 1 | Required columns | Missing columns, unexpected new columns, and a "possible rename" hint when one disappears while another appears |
+| 2 | Data types | `int`/`float`/`string`/`bool`/`datetime` mismatches, e.g. `total_amount_paid_inr` becoming a string |
+| 3 | Minimum row count | Truncated or empty pipeline output |
+| 4 | Null quality | Fully-null columns and per-column `max_null_pct` breaches (with the actual % in the error) |
+| 5 | Primary-key uniqueness | Duplicate `member_id` values |
+| 6 | Domain / range | Values outside the `allowed` set, or below `min` / above `max` |
+
+### Run it locally
+
+```bash
+python validate_data.py data/processed/member_behaviour_summary.csv \
+  --schema schema.json --report validation_report.json
+# echo $?  ->  0 means PASS, 1 means FAIL
+```
+
+A machine-readable `validation_report.json` is written for the workflow's artifact
+and for the failure notification step. The validator has 10 pytest cases in
+`tests/test_validate_data.py`.
+
+### Blocking merges (branch protection)
+
+The workflow failing is not enough by itself — you must *require* the check:
+
+1. Repo → **Settings → Branches → Add branch protection rule** (or edit the `main` rule).
+2. Branch name pattern: `main`.
+3. Tick **Require status checks to pass before merging**.
+4. Search for **Data Validation** and add it (it must have run once to appear).
+5. Save. PRs whose `validate` job fails can no longer be merged.
+
+### Failure notifications
+
+The workflow's last step runs only when validation fails
+(`if: failure()`). It calls `notify_failure.py`, which reads
+`validation_report.json` and emails the failed checks over SMTP (self-contained, same env vars as `email_sender.py`).
+Configure these repository secrets (mirroring the local `.env`):
+
+| Secret | Purpose |
+|---|---|
+| `SENDER_EMAIL` | SMTP login / from address |
+| `SENDER_PASSWORD` | SMTP app password |
+| `SMTP_SERVER` | e.g. `smtp.gmail.com` |
+| `SMTP_PORT` | e.g. `587` |
+| `NOTIFY_RECIPIENTS` | Comma-separated recipients |
+
+If secrets are absent, the step logs a warning and exits `0` so it never masks the
+original validation failure.
+
+### Intentionally changing the schema
+
+Add/rename/remove a column or change a type? Update `schema.json` in the **same PR**
+as the data change, and mention it in the PR description. The contract is the source
+of truth for every downstream consumer, so it changes deliberately and with review —
+never silently.
 
 ---
 

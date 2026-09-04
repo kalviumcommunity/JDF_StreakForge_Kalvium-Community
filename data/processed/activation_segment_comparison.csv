@@ -1,0 +1,24 @@
+segment_col,segment_level,members,activation_rate,cramers_v,p_value
+city_tier,Tier1,10507,0.1903,0.0103,0.4086
+city_tier,Tier3,1660,0.188,0.0103,0.4086
+city_tier,Tier2,4789,0.1812,0.0103,0.4086
+has_personal_trainer,True,3359,0.2355,0.0609,0.0
+has_personal_trainer,False,13597,0.1757,0.0609,0.0
+membership_type,PT-Combo,1670,0.279,0.0988,0.0
+membership_type,Premium,4051,0.218,0.0988,0.0
+membership_type,Standard,5050,0.1719,0.0988,0.0
+membership_type,Basic,6185,0.1557,0.0988,0.0
+preferred_workout_time,Afternoon,1619,0.1915,0.0156,0.3881
+preferred_workout_time,Early Morning (5-7am),3067,0.1901,0.0156,0.3881
+preferred_workout_time,Evening (6-9pm),7054,0.1901,0.0156,0.3881
+preferred_workout_time,Morning,2873,0.1887,0.0156,0.3881
+preferred_workout_time,Late Night,2343,0.1724,0.0156,0.3881
+referral_source,Friend Referral,4085,0.1973,0.0159,0.5079
+referral_source,Corporate Tie-up,1711,0.1894,0.0159,0.5079
+referral_source,Walk-in,4750,0.1859,0.0159,0.5079
+referral_source,Justdial,1503,0.1856,0.0159,0.5079
+referral_source,Instagram Ad,3752,0.1823,0.0159,0.5079
+referral_source,Aggregator App,1155,0.1766,0.0159,0.5079
+signup_channel,Website,3495,0.1923,0.0062,0.7236
+signup_channel,In-person,6003,0.1864,0.0062,0.7236
+signup_channel,App,7458,0.1862,0.0062,0.7236

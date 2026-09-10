@@ -1,2 +1,6 @@
-streamlit==1.50.0
-pandas==2.3.3
+streamlit>=1.38,<2.0
+pandas>=2.2,<3.0
+plotly>=5.22,<6.0
+numpy>=1.26,<2.0
+scipy>=1.13,<2.0
+fpdf2>=2.7,<3.0

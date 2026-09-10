@@ -1,0 +1,109 @@
+/* StreakForge dashboard theme */
+.block-container { padding-top: 1.4rem; padding-bottom: 3rem; }
+
+div[data-testid="stMetric"] {
+    background: #FFFFFF;
+    border: 1px solid #E5E8E8;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.streakforge-context-note {
+    background: #FFF6E5;
+    border-left: 4px solid #F39C12;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #7F5A00;
+    margin-bottom: 0.75rem;
+}
+
+.streakforge-audience-tag {
+    display: inline-block;
+    background: #EAF2F8;
+    color: #2980B9;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #F7F9FA;
+    border-right: 1px solid #E5E8E8;
+}
+
+/* ── KPI Dashboard cards ─────────────────────────────────────────────────
+   Native HTML grid (replaces the Plotly Indicator subplot grid). Colours come
+   from the --sf-* variables set in theme.inject_css, so light/dark both work.
+   --sf-accent is set inline per card/group from the KPI's category. */
+.sf-kpi-group { margin: 0.75rem 0 1.25rem; }
+
+.sf-kpi-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding-left: 0.75rem;
+    border-left: 4px solid var(--sf-accent);
+    margin-bottom: 1rem;
+}
+.sf-kpi-group-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--sf-text);
+}
+.sf-kpi-group-count {
+    font-size: 0.8rem;
+    color: var(--sf-text);
+    opacity: 0.6;
+}
+
+.sf-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+}
+
+.sf-kpi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.1rem 1.25rem 1.15rem;
+    background: var(--sf-card-bg);
+    border: 1px solid var(--sf-border);
+    border-top: 3px solid var(--sf-accent);
+    border-radius: 10px;
+    min-height: 132px;
+}
+.sf-kpi-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--sf-text);
+}
+.sf-kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--sf-text);
+    margin-top: auto;
+}
+.sf-kpi-unit {
+    font-size: 0.8rem;
+    color: var(--sf-text);
+    opacity: 0.6;
+}
+.sf-kpi-note {
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    background: rgba(243, 156, 18, 0.12);
+    border-left: 3px solid #F39C12;
+    border-radius: 4px;
+    color: var(--sf-text);
+}

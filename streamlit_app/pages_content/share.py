@@ -9,6 +9,11 @@ from components.sharing import (
 # is kept intact — flip this to True to restore the original email form.
 EMAIL_EXPORT_ENABLED = False
 
+# PDF export is parked for now. generate_pdf_report() in components/sharing.py
+# is kept intact — flip this to True to restore the PDF download button.
+PDF_EXPORT_ENABLED = False
+PDF_READY = PDF_EXPORT_ENABLED and FPDF_AVAILABLE
+
 
 def _render_email_under_development():
     with st.container(border=True):
@@ -49,7 +54,7 @@ def render(data, filters):
             )
 
         with col3:
-            if FPDF_AVAILABLE:
+            if PDF_READY:
                 pdf_bytes = generate_pdf_report(data, filters)
                 st.download_button(
                     "⬇️ PDF report", data=pdf_bytes,
@@ -57,8 +62,11 @@ def render(data, filters):
                     use_container_width=True,
                 )
             else:
-                st.button("⬇️ PDF report", disabled=True, use_container_width=True,
-                           help="Install fpdf2 (`pip install fpdf2`) to enable PDF export.")
+                st.button(
+                    "⬇️ PDF report 🚧", disabled=True, use_container_width=True,
+                    help="PDF export is under development. Use the Markdown report or CSV bundle for now.",
+                )
+                st.caption("🚧 PDF export is under development.")
 
         st.divider()
         st.subheader("Preview")

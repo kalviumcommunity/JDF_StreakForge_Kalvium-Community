@@ -2,7 +2,7 @@
  
 **Fitness Engagement & Retention Insight Platform**
  
-### 🔗 **[Launch the live dashboard →](https://REPLACE-ME.streamlit.app)**
+### 🔗 **[Launch the live dashboard →](https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/)**
  
 An end-to-end data analytics pipeline and deployed interactive dashboard that identifies which engagement behaviours actually influence long-term member retention for an Indian gym chain and its companion fitness app.
  
@@ -29,7 +29,7 @@ An end-to-end data analytics pipeline and deployed interactive dashboard that id
  
 ## 1. Live App
  
-**→ https://REPLACE-ME.streamlit.app**
+**→ https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/**
  
 A six-page read/display dashboard over pre-computed CSVs. **No pipeline runs at request time** — every KPI, segment, and risk score is computed by notebooks 01–06 and persisted before deployment, so the app is fast, deterministic, and cheap to host.
  
@@ -102,23 +102,6 @@ The app reads **nine files and nothing else**. Everything the notebooks produce 
 Also commit `data/processed/kpi_cards_spec.csv` and `data/processed/deliverables_manifest.csv` — the card spec carries the AS_OF_DATE `context_note`, and the manifest powers the `?page=deploy_check` pre-flight.
  
 Total committed data footprint is a **few megabytes**.
- 
-### Deliberately excluded
- 
-`streakforge_merged.csv` (206,732 × 60) and `streakforge_features.csv` (206,732 × 80) are **not read by the app** and are large enough to hit GitHub's 100 MB per-file limit. Keep them, along with `data/raw/` and `data/interim/`, out of the repo:
- 
-```gitignore
-data/raw/
-data/interim/
-data/processed/streakforge_merged.csv
-data/processed/streakforge_features.csv
-```
- 
-This is the direct consequence of the read-layer architecture — because no analysis happens at request time, the shipped artefact needs only the small aggregates, not the 200K-row event table they were derived from.
- 
-`.streamlit/secrets.toml` is also git-ignored; only the committed `secrets_template.toml` shows the expected key shape.
- 
----
  
 ## 5. Repository Structure
  

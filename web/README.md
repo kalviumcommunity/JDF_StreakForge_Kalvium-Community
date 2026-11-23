@@ -1,5 +1,7 @@
 # StreakForge web
 
+Live: https://jdf-streakforge-kalvium-community.netlify.app/overview/
+
 Static Next.js (App Router, `output: 'export'`) site that reproduces `docs/prototype/streakforge_prototype.html`.
 No server code, database, API routes, analytics, third-party scripts or CDN. The Streamlit app in `streamlit_app/` is untouched.
 

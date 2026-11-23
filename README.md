@@ -2,11 +2,13 @@
  
 **Fitness Engagement & Retention Insight Platform**
  
-### 🔗 **[Launch the live dashboard →](https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/)**
+### 🔗 **[Open the redesigned site →](https://jdf-streakforge-kalvium-community.netlify.app/overview/)**
+
+[Streamlit dashboard (original) →](https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/)
  
 An end-to-end data analytics pipeline and deployed interactive dashboard that identifies which engagement behaviours actually influence long-term member retention for an Indian gym chain and its companion fitness app.
  
-**Stack:** Python 3.11 · pandas · NumPy · SciPy · Plotly · Streamlit
+**Stack:** Python 3.11 · pandas · NumPy · SciPy · Plotly · Streamlit · Next.js (static export) · TypeScript · Playwright
  
 > **Not a churn prediction model.** StreakForge is deliberately an *insight-generation* platform — the value is in a defensible, fully documented analytical chain from raw messy CSVs to a stakeholder-ready narrative, not in a model score.
  
@@ -28,7 +30,22 @@ An end-to-end data analytics pipeline and deployed interactive dashboard that id
 ---
  
 ## 1. Live App
- 
+
+There are two front ends over the same pre-computed results.
+
+### Redesigned site (Next.js, static)
+
+**→ https://jdf-streakforge-kalvium-community.netlify.app/overview/**
+
+A static site that tells the story of the data instead of listing options. It opens on a field of 16,956 dots (one per synthetic member), highlights the twelve members worth a call this week, and rearranges the dots through five chapters: Everyone, The first seven days, Who is still here, Four kinds of member, Twelve to call. The headline finding: **81 in 100 members never show up in week one**, and the headline churn figure (94.0%) depends on an as-of date that adds 313 days of missing data (84.0% at the last real event). A permanent as-of toggle switches between the two.
+
+- **Pages:** Overview, KPI ledger (15 KPIs with definitions and reading notes), Insights (five dossiers by audience), Risk & branches (bubble chart, the twelve members, mark-contacted), Activation (funnel, cohort trend, segment explorer), Share & export (Markdown brief, CSV zip, print-to-PDF; email is labelled under development).
+- **No server, database or accounts.** It reads static JSON exported from `data/processed/` by `src/export_web_data.py`. All member data is synthetic and disclosed in the provenance strip on every page.
+- **Built and tested in `web/`:** Next.js static export, hand-written SVG charts, one canvas for the dot field, light and dark themes, reduced-motion support, keyboard paths for every chart, strict hashed CSP. See [`web/README.md`](web/README.md) for build, test and deploy steps. Design reference: `docs/prototype/` (clickable prototype and design brief).
+- **Deployed on Netlify** from `netlify.toml` (base `web`, publish `out`).
+
+### Streamlit dashboard (original)
+
 **→ https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/**
  
 A six-page read/display dashboard over pre-computed CSVs. **No pipeline runs at request time** — every KPI, segment, and risk score is computed by notebooks 01–06 and persisted before deployment, so the app is fast, deterministic, and cheap to host.
@@ -122,7 +139,14 @@ StreakForge/
 ├── src/
 │   ├── data_pipeline.py
 │   ├── insights.py                   # KPI + insight logic
-│   └── utils.py
+│   ├── utils.py
+│   ├── export_web_data.py            # data/processed/*.csv -> web/public/data/*.json
+│   └── web_copy.json                 # verbatim KPI definitions and insight wording for the site
+├── web/                              # redesigned static site (Next.js); see web/README.md
+│   ├── src/                          # app routes, components, Field canvas engine
+│   ├── public/data/                  # exported JSON the site reads (COMMITTED)
+│   ├── scripts/gen-headers.mjs       # writes out/_headers (hashed CSP) at build
+│   └── tests/                        # Playwright: visual vs prototype, behaviour, axe
 ├── streamlit_app/
 │   ├── app.py                        # entry point + router + error boundaries
 │   ├── components/
@@ -148,12 +172,14 @@ StreakForge/
 │   ├── insight_summary.md            # auto-generated                    (COMMITTED)
 │   └── root_cause_investigation_log.csv
 ├── docs/
+│   ├── prototype/                    # clickable prototype, its data and the design brief
 │   ├── PRD.md
 │   ├── data_dictionary.md
 │   └── daily_log/                    # one entry per PR day
 ├── .streamlit/
 │   ├── config.toml
 │   └── secrets_template.toml         # secrets.toml itself is git-ignored
+├── netlify.toml                      # Netlify build settings for web/
 ├── requirements.txt
 ├── runtime.txt
 └── README.md
@@ -283,13 +309,14 @@ Every summary document follows the same structure: **inputs/outputs at top → p
 ## 11. Known Limitations
  
 - **Synthetic data.** All five sources are generated, not real. Patterns are domain-grounded (Indian city tiers, monsoon/festival seasonality, referential integrity) but the conclusions are illustrative of the *method*, not of any real gym chain.
-- **The live app is a static snapshot.** It reflects the last notebook run committed to the repo. There is no scheduled refresh, no database, and no ingestion at request time — by design.
+- **Both front ends are static snapshots.** It reflects the last notebook run committed to the repo. There is no scheduled refresh, no database, and no ingestion at request time — by design.
 - **The AS_OF_DATE gap is structural.** It is surfaced and corrected for, not removed. Any future re-run against fresher data should revisit both constants.
 - **No predictive modelling.** Deliberately out of scope per the PRD.
 - **No branch-level explanation for churn was found.** 0/40 branches flagged — a genuine negative result that redirects investigation toward product/onboarding rather than operations.
 - **Segmentation does not separate churn.** Churn sits at ~93–95% across every segment cut tested, and even the highest-value RFM segment ("Champions") churns heavily — so behavioural segmentation is **not** a usable churn proxy at this aggregation level.
 - **`source_event_id` is not unique.** Use `engagement_event_id`, the surrogate key added in PR6, for any downstream join.
-- **No authentication.** The app is public. It contains no real PII, but do not extend it with real member data without adding an auth layer.
+- **Redesign data caveats.** The day-by-day split of week one in the dot field is illustrative (only the total, 3,180, is measured), and is labelled that way on the page. Email export is not built. Some prototype colours (faint grey labels, the amber tag) do not meet WCAG AA contrast, kept to match the approved design.
+- **No authentication.** The apps are public. It contains no real PII, but do not extend it with real member data without adding an auth layer.
 ---
  
 **Author:** Diya Shrivastava · B.Tech CSE (Software Product Engineering), Lovely Professional University

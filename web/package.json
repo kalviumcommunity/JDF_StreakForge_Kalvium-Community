@@ -28,5 +28,8 @@
     "pngjs": "^7.0.0",
     "serve": "^14.2.8",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -11,7 +11,7 @@ python src/export_web_data.py        # writes web/public/data/*.json from data/p
 
 # 2. build and serve
 cd web && npm install
-npm run build                        # next build + scripts/gen-headers.mjs -> out/ (with out/_headers)
+npm run build                        # next build + scripts/gen-headers.mjs -> out/ and web/vercel.json
 npm start                            # serves out/ on http://localhost:3100
 
 # 3. tests (build first)
@@ -19,11 +19,17 @@ npx playwright install chromium
 npm test                             # screenshots (vs the prototype), behaviour, axe
 ```
 
-Deploy by uploading `out/` to any static host. `out/_headers` (Netlify / Cloudflare Pages format) carries the headers below.
+## Deploy (Vercel)
 
-## Security headers
+1. Import the GitHub repo in Vercel. Framework preset: **Next.js** (auto-detected).
+2. Set **Root Directory** to `web`. Leave build, install and output settings at their defaults (`npm run build`; Next.js serves the static export).
+3. Node 20 or newer.
 
-Set on every route (`scripts/gen-headers.mjs` writes them; the CSP script/style hashes are computed per page, so no `'unsafe-inline'`):
+Security headers live in `web/vercel.json`: a strict CSP per route plus HSTS, nosniff, Referrer-Policy and Permissions-Policy. The CSP allows Next's small inline scripts and React's inline `style=""` attributes by sha256 hash, never `'unsafe-inline'`.
+
+**Whenever code or data changes, run `npm run build` locally and commit the updated `web/vercel.json`.** Builds are deterministic (fixed build id). On Vercel the build only *verifies* the committed file and fails the deploy if the hashes are stale, so a site its own CSP would break is never published.
+
+## Security headers (as set in vercel.json)
 
 ```
 Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-hashes' <hashes>; script-src 'self' <hashes>; base-uri 'none'; form-action 'self'; frame-ancestors 'none'

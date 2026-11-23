@@ -1,0 +1,12 @@
+/* Design tokens: copied verbatim from the approved prototype. */
+:root{
+  --bg:#F4F1EA;--bg2:#ECE8DF;--card:#FBF9F4;--ink:#1B1A19;--muted:#66625A;--faint:#9A958A;--line:rgba(27,26,25,.16);--line2:rgba(27,26,25,.08);
+  --ember:#E4572E;--ember-ink:#B53A17;--champ:#2F6F5E;--loyal:#3B5B8C;--dorm:#8A8578;--risk:#E4572E;--amber:#C28A1E;--dot:#1B1A19;
+  --focus:#1B1A19;
+  --display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+[data-theme=dark]{
+  --bg:#151413;--bg2:#1B1A18;--card:#1E1D1B;--ink:#F1EEE6;--muted:#A8A399;--faint:#6E6A62;--line:rgba(241,238,230,.18);--line2:rgba(241,238,230,.08);
+  --ember:#FF6A3D;--ember-ink:#FF8A63;--champ:#4FB59B;--loyal:#7FA2DB;--dorm:#8C877B;--amber:#E0AE45;--dot:#F1EEE6;--focus:#F1EEE6;
+}

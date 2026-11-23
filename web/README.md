@@ -11,7 +11,7 @@ python src/export_web_data.py        # writes web/public/data/*.json from data/p
 
 # 2. build and serve
 cd web && npm install
-npm run build                        # next build + scripts/gen-headers.mjs -> out/ and web/vercel.json
+npm run build                        # next build + scripts/gen-headers.mjs -> out/ (with out/_headers)
 npm start                            # serves out/ on http://localhost:3100
 
 # 3. tests (build first)
@@ -19,17 +19,14 @@ npx playwright install chromium
 npm test                             # screenshots (vs the prototype), behaviour, axe
 ```
 
-## Deploy (Vercel)
+## Deploy (Netlify)
 
-1. Import the GitHub repo in Vercel. Framework preset: **Next.js** (auto-detected).
-2. Set **Root Directory** to `web`. Leave build, install and output settings at their defaults (`npm run build`; Next.js serves the static export).
-3. Node 20 or newer.
+`netlify.toml` at the repo root holds the settings: base `web`, build `npm ci && npm run build`, publish `out`, Node 22, and a redirect from `/` to `/overview/`.
+In Netlify choose "Import from Git", pick the repo and branch, and accept the detected settings.
 
-Security headers live in `web/vercel.json`: a strict CSP per route plus HSTS, nosniff, Referrer-Policy and Permissions-Policy. The CSP allows Next's small inline scripts and React's inline `style=""` attributes by sha256 hash, never `'unsafe-inline'`.
+Security headers are written to `out/_headers` on every build by `scripts/gen-headers.mjs`. The CSP allows Next's small inline scripts and React's inline `style=""` attributes by sha256 hash (never `'unsafe-inline'`), so the hashes always match the files being published. The CSP is set on the six pages and the 404 page; unknown URLs served the 404 page get the other headers but no CSP.
 
-**Whenever code or data changes, run `npm run build` locally and commit the updated `web/vercel.json`.** Builds are deterministic (fixed build id). On Vercel the build only *verifies* the committed file and fails the deploy if the hashes are stale, so a site its own CSP would break is never published.
-
-## Security headers (as set in vercel.json)
+## Security headers
 
 ```
 Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-hashes' <hashes>; script-src 'self' <hashes>; base-uri 'none'; form-action 'self'; frame-ancestors 'none'

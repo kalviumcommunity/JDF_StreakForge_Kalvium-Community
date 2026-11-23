@@ -1,0 +1,13 @@
+# Netlify: static export of the Next.js site in web/
+[build]
+  base = "web"
+  command = "npm ci && npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[redirects]]
+  from = "/"
+  to = "/overview/"
+  status = 302

@@ -9,7 +9,7 @@ const nextConfig = {
   trailingSlash: true,
   reactStrictMode: true,
   poweredByHeader: false,
-  generateBuildId: async () => 'streakforge', // deterministic, so CSP hashes in vercel.json stay valid
+  generateBuildId: async () => 'streakforge', // stable build id
   // '@/x' -> src/x (matches only the '@/' prefix, so '@fontsource/...' is untouched)
   webpack(config, { webpack }) {
     config.plugins.push(new webpack.NormalModuleReplacementPlugin(/^@\//, (r) => { r.request = path.join(root, 'src', r.request.slice(2)); }));

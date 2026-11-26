@@ -1,1 +1,9 @@
 .ipynb_checkpoints/
+
+# web (Next.js static site)
+web/node_modules/
+web/.next/
+web/out/
+web/test-results/
+web/playwright-report/
+web/tests/.tmp/

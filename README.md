@@ -2,11 +2,11 @@
  
 **Fitness Engagement & Retention Insight Platform**
  
-### 🔗 **[Launch the live dashboard →](https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/)**
+### 🔗 **[Open the redesigned site →](https://jdf-streakforge-kalvium-community.netlify.app/overview/)**
  
 An end-to-end data analytics pipeline and deployed interactive dashboard that identifies which engagement behaviours actually influence long-term member retention for an Indian gym chain and its companion fitness app.
  
-**Stack:** Python 3.11 · pandas · NumPy · SciPy · Plotly · Streamlit
+**Stack:** Python 3.11 · pandas · NumPy · SciPy · Plotly · Next.js (static export) · TypeScript · Playwright
  
 > **Not a churn prediction model.** StreakForge is deliberately an *insight-generation* platform — the value is in a defensible, fully documented analytical chain from raw messy CSVs to a stakeholder-ready narrative, not in a model score.
  
@@ -28,27 +28,16 @@ An end-to-end data analytics pipeline and deployed interactive dashboard that id
 ---
  
 ## 1. Live App
- 
-**→ https://streakforge-fitness-engagement-retention-insight-platform.streamlit.app/**
- 
-A six-page read/display dashboard over pre-computed CSVs. **No pipeline runs at request time** — every KPI, segment, and risk score is computed by notebooks 01–06 and persisted before deployment, so the app is fast, deterministic, and cheap to host.
- 
-| Page | Contents |
-|---|---|
-| **Overview** | Headline KPIs, data-health panel, RFM segment mix donut, weekly engagement sparkline |
-| **KPI Dashboard** | Full 15-KPI card grid with category grouping and `context_note` caveats |
-| **Insights & Narrative** | The five insights, filterable by **stakeholder audience** |
-| **At-Risk & Branch Risk** | The 12 flagged members, the 40-branch risk summary, signal-mix breakdown |
-| **Activation Deep-Dive** | Funnel drop-off, cohort trend, segment comparison |
-| **Share & Export** | Markdown report, CSV ZIP bundle, optional PDF, SMTP email delivery |
- 
-**Runtime behaviour built for hosting:**
- 
-- **`st.cache_data` loaders with mtime-aware invalidation** — drop in regenerated CSVs and the cache clears itself, no manual "Clear cache"
-- **Per-page error boundaries** so one bad page can't take down the app
-- **Health checks** validating file presence and row counts against expected processed CSVs, surfaced in the Overview panel
-- **Graceful degradation** — the PDF export path is optional (`fpdf2`); Markdown and CSV export never depend on it, and the app runs fine if SMTP secrets are absent
-- **Pre-flight page** at `?page=deploy_check`, cross-checking `deliverables_manifest.csv` against what's actually on disk
+
+**→ https://jdf-streakforge-kalvium-community.netlify.app/overview/**
+
+A static site that tells the story of the data instead of listing options. It opens on a field of 16,956 dots (one per synthetic member), highlights the twelve members worth a call this week, and rearranges the dots through five chapters: Everyone, The first seven days, Who is still here, Four kinds of member, Twelve to call. The headline finding: **81 in 100 members never show up in week one**, and the headline churn figure (94.0%) depends on an as-of date that adds 313 days of missing data (84.0% at the last real event). A permanent as-of toggle switches between the two.
+
+- **Pages:** Overview, KPI ledger (15 KPIs with definitions and reading notes), Insights (five dossiers by audience), Risk & branches (bubble chart, the twelve members, mark-contacted), Activation (funnel, cohort trend, segment explorer), Share & export (Markdown brief, CSV zip, print-to-PDF; email is labelled under development).
+- **No server, database or accounts.** It reads static JSON exported from `data/processed/` by `src/export_web_data.py`. All member data is synthetic and disclosed in the provenance strip on every page.
+- **Built and tested in `web/`:** Next.js static export, hand-written SVG charts, one canvas for the dot field, light and dark themes, reduced-motion support, keyboard paths for every chart, strict hashed CSP. See [`web/README.md`](web/README.md) for build, test and deploy steps. Design reference: `docs/prototype/` (clickable prototype and design brief).
+- **Deployed on Netlify** from `netlify.toml` (base `web`, publish `out`).
+
 ---
  
 ## 2. Problem Statement
@@ -57,7 +46,7 @@ A fitness application stores **workout completion logs, streak history, and subs
  
 **Objective:** consolidate those five sources into one validated analytical fact table, enrich it with retention-relevant derived features, and surface the retention story through EDA, KPIs, anomaly detection, root-cause investigation, and a deployed interactive dashboard.
  
-**In scope:** profiling, cleaning, merging, feature engineering, EDA, KPI design, anomaly/risk detection, root-cause analysis, visual storytelling, Streamlit dashboard with filters and export.
+**In scope:** profiling, cleaning, merging, feature engineering, EDA, KPI design, anomaly/risk detection, root-cause analysis, visual storytelling, and a static web front end.
  
 **Out of scope:** predictive/ML churn modelling, real-time pipelines, production authentication or multi-tenancy.
  
@@ -83,7 +72,7 @@ Both figures are computed, labelled, and reported **side by side** at every laye
  
 ## 4. What Gets Committed
  
-The app reads **nine files and nothing else**. Everything the notebooks produce upstream of those is reproducible and stays out of the repo.
+The front end reads **nine files and nothing else**. The repo also tracks the upstream data (raw, interim and the two large event-grain tables) so the whole pipeline can be re-run from a clone. Those extra files are not needed to run the site.
  
 ### Required in the repo (the app will not start without these)
  
@@ -99,19 +88,18 @@ The app reads **nine files and nothing else**. Everything the notebooks produce 
 | `data/processed/insights_payload.json` | — | Insights (falls back to CSVs if absent) |
 | `reports/insight_summary.md` | 75 lines | Insights, Share & Export |
  
-Also commit `data/processed/kpi_cards_spec.csv` and `data/processed/deliverables_manifest.csv` — the card spec carries the AS_OF_DATE `context_note`, and the manifest powers the `?page=deploy_check` pre-flight.
+Also commit `data/processed/kpi_cards_spec.csv` and `data/processed/deliverables_manifest.csv` — the card spec carries the AS_OF_DATE `context_note`.
  
-Total committed data footprint is a **few megabytes**.
+**What the site needs** is about 4.5 MB. **What the repo holds in total** is much larger: `data/raw/` (~26 MB), `data/interim/` (~61 MB), and two event-grain tables in `data/processed/` that the site does not read, `streakforge_merged.csv` (~95 MB) and `streakforge_features.csv` (~122 MB). `web/public/data/*.json` (generated by `src/export_web_data.py`) is committed too, because Netlify builds from it.
  
 ## 5. Repository Structure
  
 ```
 StreakForge/
 ├── data/
-│   ├── raw/                          # acquired datasets, untouched      (git-ignored)
-│   ├── interim/                      # cleaned per-source + validation   (git-ignored)
-│   ├── processed/                    # KPI/insight tables                (COMMITTED)
-│   └── external/                     # schema references
+│   ├── raw/                          # acquired datasets, untouched      (committed)
+│   ├── interim/                      # cleaned per-source + validation   (committed)
+│   └── processed/                    # KPI/insight tables + event-grain tables (committed)
 ├── notebooks/
 │   ├── 01_data_profiling_and_cleaning.ipynb        # PR1–PR5
 │   ├── 02_merging_and_validation.ipynb             # PR6
@@ -120,40 +108,23 @@ StreakForge/
 │   ├── 05_kpi_and_insight_generation.ipynb         # PR11–PR12
 │   └── 06_visualisation_and_storytelling.ipynb     # PR13–PR16
 ├── src/
-│   ├── data_pipeline.py
-│   ├── insights.py                   # KPI + insight logic
-│   └── utils.py
-├── streamlit_app/
-│   ├── app.py                        # entry point + router + error boundaries
-│   ├── components/
-│   │   ├── data_loader.py            # cached, mtime-aware CSV/JSON loaders
-│   │   ├── theme.py                  # brand palette + light/dark toggle
-│   │   ├── sidebar.py                # navigation + filter/share callbacks
-│   │   ├── filters.py                # session-state-backed cascading filters
-│   │   ├── sharing.py                # Markdown / CSV-ZIP / PDF / SMTP export
-│   │   ├── health.py                 # file-presence + row-count checks
-│   │   └── state.py                  # session bootstrapping
-│   ├── pages_content/
-│   │   ├── overview.py
-│   │   ├── kpi_dashboard.py
-│   │   ├── insights.py
-│   │   ├── risk.py
-│   │   ├── activation.py
-│   │   ├── share.py
-│   │   └── deploy_check.py           # internal pre-flight (?page=deploy_check)
-│   └── assets/
+│   ├── export_web_data.py            # data/processed/*.csv -> web/public/data/*.json
+│   └── web_copy.json                 # verbatim KPI definitions and insight wording for the site
+├── web/                              # redesigned static site (Next.js); see web/README.md
+│   ├── src/                          # app routes, components, Field canvas engine
+│   ├── public/data/                  # exported JSON the site reads (COMMITTED)
+│   ├── scripts/gen-headers.mjs       # writes out/_headers (hashed CSP) at build
+│   └── tests/                        # Playwright: visual vs prototype, behaviour, axe
 ├── reports/
 │   ├── figures/                      # PR8–PR12 static PNGs
 │   │   └── interactive/              # PR13–PR15 standalone Plotly HTML
 │   ├── insight_summary.md            # auto-generated                    (COMMITTED)
 │   └── root_cause_investigation_log.csv
 ├── docs/
-│   ├── PRD.md
-│   ├── data_dictionary.md
-│   └── daily_log/                    # one entry per PR day
-├── .streamlit/
-│   ├── config.toml
-│   └── secrets_template.toml         # secrets.toml itself is git-ignored
+│   ├── prototype/                    # clickable prototype, its data and the design brief (PDF)
+│   ├── StreakForge_PRD (2).pdf       # product requirement document
+│   └── data_dictionary_draft.csv     # column-level draft dictionary
+├── netlify.toml                      # Netlify build settings for web/
 ├── requirements.txt
 ├── runtime.txt
 └── README.md
@@ -177,17 +148,17 @@ The two event sources are **unioned** into a single `engagement_events` fact tab
  
 **Final analytical tables:**
  
-| Table | Shape | Grain | Shipped? |
+| Table | Shape | Grain | Read by the site? |
 |---|---|---|---|
-| `streakforge_merged.csv` | 206,732 × 60 | Engagement event | No |
-| `streakforge_features.csv` | 206,732 × 80 | Event + 20 derived features | No |
+| `streakforge_merged.csv` | 206,732 × 60 | Engagement event | No (committed, ~95 MB) |
+| `streakforge_features.csv` | 206,732 × 80 | Event + 20 derived features | No (committed, ~122 MB) |
 | `member_behaviour_summary.csv` | 16,956 × 33 | **Member** (RFM + segment) | **Yes** |
  
 ---
  
 ## 7. Analytical Pipeline
  
-Delivered as **21 PRs across 25 days**, grouped into five phases. Each notebook opens with its purpose and explicit inputs/outputs, and each has a companion markdown summary generated from **actually executed outputs**.
+Delivered as **21 PRs across 25 days**, grouped into five phases. Each notebook opens with its purpose and explicit inputs/outputs, and its written findings come from **actually executed outputs**.
  
 ### Phase 1 — Data Preparation (PR1–PR6)
  
@@ -215,9 +186,9 @@ Delivered as **21 PRs across 25 days**, grouped into five phases. Each notebook 
 |---|---|
 | `06_visualisation_and_storytelling` | Establishes a **semantic brand palette** (green = retention, red/orange = risk) and a reusable `apply_streakforge_theme()` house style where every chart title carries the *business takeaway*, not the axis label. **7 standalone interactive Plotly HTML charts**, a KPI card grid, an executive one-pager, the 5-insight narrative, `insights_payload.json`, a **33-row deliverables manifest**, and a programmatically generated `insight_summary.md`. |
  
-### Phase 5 — Streamlit App (PR17–PR21)
+### Phase 5 — Front End (PR17–PR21)
  
-App structure and navigation (PR17) → cascading session-state filters (PR18) → sharing and email export (PR19) → caching, health checks, error boundaries, theme toggle (PR20) → configuration and pre-flight page (PR21). See [Section 1](#1-live-app).
+The front end is the static site described in [Section 1](#1-live-app).
  
 ---
  
@@ -228,7 +199,7 @@ These are **non-negotiable** and enforced consistently from notebook 01 through 
 - **Flag, don't silently fix.** Data quality issues are documented and annotated, never quietly corrected. A negative `days_before_expiry_renewed` is a *grace-period signal*, not an error; 96,099 null `trainer_id` values mean *self-guided sessions*, not missing data.
 - **AS_OF_DATE sensitivity.** The fixed pipeline constant and the data-realistic boundary are always distinguished, and both figures reported — including in the UI.
 - **CSV-only persistence.** No parquet, pickle, or binary formats at any stage. PDF/email exports are *artefacts*, never pipeline state.
-- **The Streamlit app is a read/display layer only.** All KPI and segment logic is pre-computed by the notebooks; nothing is re-derived at request time.
+- **The front end is a read/display layer only.** All KPI and segment logic is pre-computed by the notebooks; nothing is re-derived at request time.
 - **Grain discipline.** Aggregations apply `drop_duplicates(<business_key>)` before any grouping, and **member-grain is preferred over event-grain** so high-activity members aren't over-weighted.
 - **Fresh load per PR.** No in-memory state carried between sections; every PR is independently loadable and re-runnable.
 - **Documentation matches implementation.** Markdown summaries are written from real executed outputs, never anticipated values from draft code.
@@ -265,31 +236,26 @@ _Generated by `06_visualisation_and_storytelling.ipynb` — AS_OF_DATE 2026-08-1
  
 | File | Covers |
 |---|---|
-| `docs/PRD.md` | Full product requirement document — scope, data spec, 25-day execution plan |
-| `docs/data_dictionary.md` | Column-level specification, updated whenever a column is added, renamed, or derived |
-| `data_profiling_and_cleaning.md` | PR1–PR5 — profiling findings and cleaning decisions |
-| `merging_and_validation.md` | PR6 — union strategy, join validation log |
-| `feature_engineering.md` | PR7 — all 20 derived columns and the vectorisation approach |
-| `eda_and_behavioural_analysis.md` | PR8–PR10 — distributions, segments, RFM, funnel |
-| `kpi_and_insight_generation.md` | PR11–PR12 — KPI definitions, anomalies, root-cause log |
-| `visualisation_and_storytelling.md` | PR13–PR16 — chart design system, narrative, exports |
+| `docs/StreakForge_PRD (2).pdf` | Product requirement document — scope, data spec, execution plan |
+| `docs/data_dictionary_draft.csv` | Draft column-level specification |
+| `docs/prototype/` | Clickable prototype (`streakforge_prototype.html`), its data, and the website design brief (PDF) |
+| `notebooks/01`–`06` | Each notebook opens with its purpose and inputs/outputs; together they are the per-PR record of the analysis |
 | `reports/insight_summary.md` | Auto-generated KPI + insight summary (the executive read) |
-| `streakforge_dataset_specifications.md` | Source dataset generation specification |
- 
-Every summary document follows the same structure: **inputs/outputs at top → per-PR sections → tables of real results → Key Findings Carried Forward → Open Items Flagged for Downstream Work.**
+| `web/README.md` | Build, test and deploy steps for the redesigned site |
  
 ---
  
 ## 11. Known Limitations
  
 - **Synthetic data.** All five sources are generated, not real. Patterns are domain-grounded (Indian city tiers, monsoon/festival seasonality, referential integrity) but the conclusions are illustrative of the *method*, not of any real gym chain.
-- **The live app is a static snapshot.** It reflects the last notebook run committed to the repo. There is no scheduled refresh, no database, and no ingestion at request time — by design.
+- **The site is a static snapshot.** They reflect the last notebook run committed to the repo. There is no scheduled refresh, no database, and no ingestion at request time — by design.
 - **The AS_OF_DATE gap is structural.** It is surfaced and corrected for, not removed. Any future re-run against fresher data should revisit both constants.
 - **No predictive modelling.** Deliberately out of scope per the PRD.
 - **No branch-level explanation for churn was found.** 0/40 branches flagged — a genuine negative result that redirects investigation toward product/onboarding rather than operations.
 - **Segmentation does not separate churn.** Churn sits at ~93–95% across every segment cut tested, and even the highest-value RFM segment ("Champions") churns heavily — so behavioural segmentation is **not** a usable churn proxy at this aggregation level.
 - **`source_event_id` is not unique.** Use `engagement_event_id`, the surrogate key added in PR6, for any downstream join.
-- **No authentication.** The app is public. It contains no real PII, but do not extend it with real member data without adding an auth layer.
+- **Redesign data caveats.** The day-by-day split of week one in the dot field is illustrative (only the total, 3,180, is measured), and is labelled that way on the page. Email export is not built. Some prototype colours (faint grey labels, the amber tag) do not meet WCAG AA contrast, kept to match the approved design.
+- **No authentication.** The site is public. It contains no real PII, but do not extend it with real member data without adding an auth layer.
 ---
  
 **Author:** Diya Shrivastava · B.Tech CSE (Software Product Engineering), Lovely Professional University

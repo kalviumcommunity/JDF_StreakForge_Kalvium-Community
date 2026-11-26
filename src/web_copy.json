@@ -1,0 +1,215 @@
+{
+ "_comment": "Static copy carried over verbatim from docs/prototype/streakforge_data.json. Numbers are NOT stored here; they come from data/processed/*.csv.",
+ "kpis": {
+  "kpi_01": {
+   "name": "Overall Churn Rate",
+   "cat": "Retention",
+   "defn": "Share of members whose latest billing cycle ended more than 30 days before the pipeline as-of date (2026-08-14).",
+   "note": "Read with kpi_15. The pipeline date sits 313 days past the last real event, so this figure is inflated by missing data, not only by behaviour.",
+   "pair": "kpi_15"
+  },
+  "kpi_02": {
+   "name": "Overall Retention Rate",
+   "cat": "Retention",
+   "defn": "1 minus the overall churn rate.",
+   "note": "The mirror of kpi_01, so it carries the same as-of caveat.",
+   "pair": null
+  },
+  "kpi_03": {
+   "name": "Active Members",
+   "cat": "Retention",
+   "defn": "Members not classified as churned as of the pipeline as-of date.",
+   "note": "This is the population the composite risk score runs on: Low 487, Moderate 403, Elevated 109, High 12.",
+   "pair": null
+  },
+  "kpi_04": {
+   "name": "7-Day Activation Rate",
+   "cat": "Acquisition & Activation",
+   "defn": "Share of members who log any gym or app event within 7 days of their join date.",
+   "note": "The largest single drop in the funnel: 81.2% of members never engage in week one.",
+   "pair": null
+  },
+  "kpi_05": {
+   "name": "Renewal Follow-Through Rate",
+   "cat": "Acquisition & Activation",
+   "defn": "Of members who ever subscribed, the share who renewed at least once more.",
+   "note": "Healthy next to activation. Renewal is not where the platform leaks.",
+   "pair": null
+  },
+  "kpi_06": {
+   "name": "Median Revenue per Member",
+   "cat": "Revenue",
+   "defn": "Median total rupees paid per member. Median is preferred because spend is heavily right-skewed.",
+   "note": "Quote this one when you need a typical member.",
+   "pair": null
+  },
+  "kpi_07": {
+   "name": "Mean Revenue per Member",
+   "cat": "Revenue",
+   "defn": "Mean total rupees paid per member, reported next to the median to show the skew.",
+   "note": "Roughly double the median: a few large payers pull the mean up.",
+   "pair": null
+  },
+  "kpi_08": {
+   "name": "Discount Utilisation Rate",
+   "cat": "Revenue",
+   "defn": "Share of distinct renewal records with a discount applied.",
+   "note": "",
+   "pair": null
+  },
+  "kpi_09": {
+   "name": "Corporate Tie-Up Mix",
+   "cat": "Revenue",
+   "defn": "Share of distinct renewal records under a corporate tie-up plan.",
+   "note": "",
+   "pair": null
+  },
+  "kpi_10": {
+   "name": "Median Plan-to-Engagement Ratio",
+   "cat": "Revenue",
+   "defn": "Median rupees paid per logged gym session. Surfaces members who are paying but not showing up.",
+   "note": "The twelve flagged members sit at 48,000 to 102,000 on this measure.",
+   "pair": null
+  },
+  "kpi_11": {
+   "name": "Avg Weekly Session Rate",
+   "cat": "Engagement",
+   "defn": "Mean of each member's rolling 4-week sessions per week.",
+   "note": "",
+   "pair": null
+  },
+  "kpi_12": {
+   "name": "Avg Session Consistency Score",
+   "cat": "Engagement",
+   "defn": "Mean coefficient of variation of the gaps between sessions. Lower means more regular attendance.",
+   "note": "The name is misleading: a lower score is better.",
+   "pair": null
+  },
+  "kpi_13": {
+   "name": "Avg Streak Length",
+   "cat": "Product / Streak Health",
+   "defn": "Mean of each member's average streak length.",
+   "note": "",
+   "pair": null
+  },
+  "kpi_14": {
+   "name": "Streak-Break Recovery Rate",
+   "cat": "Product / Streak Health",
+   "defn": "Share of finished streaks followed by a gym check-in within 14 days (streak grain).",
+   "note": "Over all finished streaks in the raw table the figure is 10.3%. The two differ because of the denominator.",
+   "pair": null
+  },
+  "kpi_15": {
+   "name": "Churn Rate (data-realistic as-of)",
+   "cat": "Retention",
+   "defn": "The same churn logic anchored at the last real event in the data, 2025-10-05.",
+   "note": "Treat this as the operationally meaningful number and always show it beside kpi_01.",
+   "pair": "kpi_01"
+  }
+ },
+ "kpi_units": {
+  "count": "members",
+  "INR": "INR",
+  "INR/session": "INR / session",
+  "sessions/wk": "sessions / week",
+  "CV": "CV",
+  "days": "days",
+  "%": "%"
+ },
+ "insights": [
+  {
+   "id": "INS-01",
+   "title": "Churn looks catastrophic at 94%, but much of it is a measurement artefact",
+   "aud": "Leadership / Finance",
+   "conf": "High",
+   "confN": 4,
+   "story": "The pipeline's fixed as-of date (2026-08-14) sits well past the dataset's actual last event (2025-10-05), so almost every member reads as churned. Re-anchoring to a data-realistic date drops churn to 84.0%. That is still high, but the 94.0% headline should never be quoted to leadership without this context.",
+   "evidence": "kpi_01 against kpi_15 in kpi_summary.csv; the PR9 and PR11 as-of decision.",
+   "impact": "High. Wrong framing risks over-reacting, for example with panic win-back spend, to a partly artefactual number.",
+   "action": "Report churn with both figures side by side. Treat kpi_15 as the operationally meaningful number.",
+   "route": "overview",
+   "anchor": "two-clocks"
+  },
+  {
+   "id": "INS-02",
+   "title": "Activation, not renewal, is where the platform loses members",
+   "aud": "Product / Growth",
+   "conf": "Medium-High",
+   "confN": 3,
+   "story": "Only 18.8% of members log any activity within 7 days of joining. That is an 81.2% drop at a single stage and the largest of any funnel step. No acquisition channel or demographic segment explains it: every Cramér's V is below 0.1.",
+   "evidence": "kpi_04; activation_segment_comparison.csv; the PR10 funnel.",
+   "impact": "High. This is the single highest-leverage retention lever found in the dataset.",
+   "action": "Prioritise onboarding experiments on UX and timing over channel-targeted acquisition spend.",
+   "route": "activation",
+   "anchor": "funnel"
+  },
+  {
+   "id": "INS-03",
+   "title": "Activation is quietly improving, so the funnel is not getting worse",
+   "aud": "Leadership / Product",
+   "conf": "Medium",
+   "confN": 2,
+   "story": "Monthly cohort activation rose from about 14.6% in late 2024 to about 36.6% in September 2025. It is the most encouraging non-obvious finding in the dataset and the opposite of what the 81.2% headline drop-off implies in isolation.",
+   "evidence": "activation_cohort_trend.csv; PR12 section 12.1(b).",
+   "impact": "Medium. It reframes the story from a broken funnel to an improving one worth investing in.",
+   "action": "Investigate what changed operationally in early 2025 and double down on it.",
+   "route": "activation",
+   "anchor": "cohort"
+  },
+  {
+   "id": "INS-04",
+   "title": "Churn and activation are platform-wide problems, not a branch-operations issue",
+   "aud": "Operations",
+   "conf": "Medium",
+   "confN": 2,
+   "story": "None of the 40 branches is a statistical churn-rate outlier, and none combines a churn anomaly with bottom-quartile activation. That rules out a few bad branches as the root cause.",
+   "evidence": "branch_risk_summary.csv (0 of 40 flagged); PR11 section 11.2.2 and PR12 section 12.1(c).",
+   "impact": "Medium. It redirects the investigation away from branch staffing and operations, toward product and onboarding.",
+   "action": "Do not fund a branch-level operational audit as a churn fix. Focus centrally on onboarding.",
+   "route": "risk",
+   "anchor": "branches"
+  },
+  {
+   "id": "INS-05",
+   "title": "A small, well-defined 'paid once, never engaged' cohort is ready for outreach",
+   "aud": "Customer Success",
+   "conf": "High",
+   "confN": 4,
+   "story": "Twelve currently-active members trigger nearly every composite risk signal. Most are single-event members paying 48,000 to 102,000 rupees per logged session. It is a short, actionable list rather than a diffuse population-wide signal.",
+   "evidence": "at_risk_members.csv (12 rows); PR11 section 11.2.3.",
+   "impact": "Medium. The volume is small, but the win-back value per member is high and the targeting cost is low.",
+   "action": "Reach out directly, by call or PT trial offer, to the 12 flagged members within the next billing cycle.",
+   "route": "risk",
+   "anchor": "at-risk"
+  }
+ ],
+ "funnel_labels": [
+  "Signed up",
+  "Activated within 7 days",
+  "Renewed at least once",
+  "Formed a 7-day streak",
+  "Currently retained"
+ ],
+ "rfm": [
+  [
+   "Loyal / Engaged",
+   5313,
+   "loyal"
+  ],
+  [
+   "At Risk",
+   5264,
+   "risk"
+  ],
+  [
+   "Champions",
+   3220,
+   "champ"
+  ],
+  [
+   "Dormant / Lapsed",
+   3159,
+   "dorm"
+  ]
+ ]
+}
